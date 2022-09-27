@@ -1,11 +1,10 @@
-# from scapy.all import *
 from cryptography.fernet import Fernet
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import padding
 
-class FormLayer:
+class Layer:
     f = None
 
     def __init__(self):
@@ -19,7 +18,7 @@ class FormLayer:
 
     def encrypt(self, data):
         self.f = Fernet(self.key)
-        encrypted_data = self.f.encrypt(bytes(data, 'utf-8'))
+        encrypted_data = self.f.encrypt(data)
 
         encrypted_key = self.public_key.encrypt(
             self.key,

@@ -1,6 +1,6 @@
 # from scapy.all import *
 # from scapy.layers.inet import *
-from tools.formlayer import FormLayer
+from tools.layer import Layer
 
 """
 packet = IP()/TCP(sport=57575, dport=55555)/Raw(load="hello")
@@ -12,13 +12,16 @@ packet.show()
 send(packet)
 
 """
-x = FormLayer()
+layer1 = Layer()
+layer2 = Layer()
+layer3 = Layer()
 
-encrypted_data = x.encrypt("hola mr pablo")
+encrypted_data = layer1.encrypt(layer2.encrypt(layer3.encrypt(bytes("hello mr pablo", 'utf-8'))))
 
 print(encrypted_data)
 print("\n--------------------------------\n")
-data = x.decrypt(encrypted_data)
 
-print(data)
-print(data.decode("utf-8"))
+decrypted_data = layer3.decrypt(layer2.decrypt(layer1.decrypt(encrypted_data)))
+
+print(decrypted_data)
+print(decrypted_data.decode("utf-8"))
