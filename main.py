@@ -1,7 +1,21 @@
 from scapy.all import *
+from threading import Thread
+import time
 
-conf.L3socket = L3RawSocket
+data = b""
+def sniff_loopback():
+    sniff(prn=lambda x: add_packet(x), filter="dst port 55656", iface="Software Loopback Interface 1")
 
-capture = sniff(filter='dst port 55555', count=1)
-print("done sniffing")
-capture.summary()
+
+def add_packet(packet):
+    global data
+    if packet.load == b"DONE":
+        with open("newpicture.jpg", "wb") as picture:
+            picture.write(data)
+    else:
+        data = data + packet.load
+
+
+sniff_thread = Thread(target=sniff_loopback)
+sniff_thread.start()
+
