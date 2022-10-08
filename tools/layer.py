@@ -3,6 +3,8 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import padding
+from cryptography.hazmat.primitives import serialization
+
 
 class Layer:
     f = None
@@ -15,6 +17,38 @@ class Layer:
             backend=default_backend()
         )
         self.public_key = self.private_key.public_key()
+
+    def store_keys(self, sufix):
+        pem = self.private_key.private_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PrivateFormat.PKCS8,
+            encryption_algorithm=serialization.NoEncryption()
+        )
+
+        with open('private_key'+sufix+'.pem', 'wb') as f:
+            f.write(pem)
+
+        pem = self.public_key.public_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PublicFormat.SubjectPublicKeyInfo
+        )
+
+        with open('public_key'+sufix+'.pem', 'wb') as f:
+            f.write(pem)
+
+    def change_keys(self, sufix):
+        with open('private_key'+sufix+'.pem', 'rb') as key_file:
+            self.private_key = serialization.load_pem_private_key(
+                key_file.read(),
+                password=None,
+                backend=default_backend()
+            )
+
+        with open('public_key'+sufix+'.pem', 'rb') as key_file:
+            self.public_key = serialization.load_pem_public_key(
+                key_file.read(),
+                backend=default_backend()
+            )
 
     def encrypt(self, data):
         self.f = Fernet(self.key)
@@ -44,5 +78,5 @@ class Layer:
         )
 
         encrypted_data = encrypted_data[256:]
-
-        return self.f.decrypt(encrypted_data)
+        f = Fernet(decrypted_key)
+        return f.decrypt(encrypted_data)
