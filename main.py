@@ -1,6 +1,7 @@
 from scapy.all import *
 from threading import Thread
 import time
+from queue import Queue, Empty
 
 from tools.layer import Layer
 
@@ -12,9 +13,26 @@ layer2.change_keys("2")
 layer3 = Layer()
 layer3.change_keys("3")
 
-data_list = []
-def sniff_loopback():
-    sniff(prn=lambda x: add_packet(x), filter="dst port 55656", iface="Software Loopback Interface 1")
+finished = False
+
+
+def threaded_sniff_with_send():
+    q = Queue()
+    sniffer = Thread(target=sniff_loopback, args=(q,))
+    sniffer.daemon = True
+    sniffer.start()
+    time.sleep(1)  # just to make sure the sniffer doesn't override with future scapy functions.
+    while not finished:
+        try:
+            pkt = q.get(timeout=1)
+            add_packet(pkt)
+        except Empty:
+            pass
+
+
+def sniff_loopback(q):
+    sniff(prn=lambda x: q.put(x), filter="dst port 55656", iface="Software Loopback Interface 1")
+
 
 def add_packet(packet):
     global data
@@ -32,5 +50,4 @@ def decrypt_packet(data):
     return decrypted_data
 
 
-sniff_thread = Thread(target=sniff_loopback)
-sniff_thread.start()
+threaded_sniff_with_send()

@@ -13,7 +13,7 @@ layer3.change_keys("3")
 def send_data(data):
     while len(data) > 0:
         print(len(data))
-        time.sleep(0.1)
+        # time.sleep(0.1)
         if len(data) > 16384:
             encrypted_data = layer1.encrypt(layer2.encrypt(layer3.encrypt(data[:16384])))
             packet = IP(dst="127.0.0.1") / TCP(dport=55656, sport=55555) / Raw(encrypted_data)
