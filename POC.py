@@ -16,18 +16,19 @@ def send_data(data):
         # time.sleep(0.1)
         if len(data) > 16384:
             encrypted_data = layer1.encrypt(layer2.encrypt(layer3.encrypt(data[:16384])))
-            packet = IP(dst="127.0.0.1") / TCP(dport=55656, sport=55555) / Raw(encrypted_data)
+            packet = IP(dst="127.0.0.1") / TCP(dport=55556, sport=55555) / Raw(encrypted_data)
+            print(packet.load)
             send(packet)
             data = data[16384:]
         else:
             encrypted_data = layer1.encrypt(layer2.encrypt(layer3.encrypt(data)))
-            packet = IP(dst="127.0.0.1") / TCP(dport=55656, sport=55555) / Raw(encrypted_data)
+            packet = IP(dst="127.0.0.1") / TCP(dport=55556, sport=55555) / Raw(encrypted_data)
             send(packet)
             # ending argument
             break
 
     done_argument = layer1.encrypt(layer2.encrypt(layer3.encrypt(b"DONE")))
-    packet = IP(dst="127.0.0.1") / TCP(dport=55656, sport=55555) / Raw(done_argument)
+    packet = IP(dst="127.0.0.1") / TCP(dport=55556, sport=55555) / Raw(done_argument)
     send(packet)
 
 
