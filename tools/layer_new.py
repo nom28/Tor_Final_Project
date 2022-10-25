@@ -117,7 +117,7 @@ if __name__ == '__main__':
     l = Layer()
     session_id = random.randbytes(20)
 
-    x = l.encrypt(b"hello sir", session_id)
+    x = l.encrypt(b"hey sir", session_id)
     # x = l.encrypt(b":)", "255.255.255.255", "00080")
     result = l.decrypt(x)
     print(result)
