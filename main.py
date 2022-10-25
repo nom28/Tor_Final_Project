@@ -26,7 +26,7 @@ def threaded_sniff_with_send():
     while not finished:
         try:
             pkt = q.get(timeout=1)
-            add_packet(pkt)
+            get_packet(pkt)
         except Empty:
             pass
 
@@ -35,15 +35,17 @@ def sniff_loopback(q):
     sniff(prn=lambda x: q.put(x), filter="dst port 55559", iface="Software Loopback Interface 1")
 
 
-def add_packet(packet):
+def get_packet(packet):
     global data
     d = packet.load
     print(d)
-    if d == b"DONE":
+
+    # only for pictures
+    """if d == b"DONE":
         with open("newpicture.jpg", "wb") as picture:
             picture.write(data)
     else:
-        data = data + d
+        data = data + d"""
 
 
 """
