@@ -53,6 +53,7 @@ class Layer:
             )
 
     def encrypt(self, data, session_id, ip="127.0.0.1", port="55556"):
+        # could be possible to move data in heading to the payload.
         self.f = Fernet(self.key)
         encrypted_data = self.f.encrypt(data)
 
@@ -117,7 +118,7 @@ if __name__ == '__main__':
     l = Layer()
     session_id = random.randbytes(20)
 
-    x = l.encrypt(b"hello sir", session_id)
+    x = l.encrypt(b"hey sir", session_id)
     # x = l.encrypt(b":)", "255.255.255.255", "00080")
     result = l.decrypt(x)
     print(result)

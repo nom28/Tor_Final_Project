@@ -24,14 +24,13 @@ def threaded_sniff_with_send():
     sniffer.start()
     time.sleep(1)  # just to make sure the sniffer doesn't override with future scapy functions.
     while not finished:
-        try:
+        if not q.empty():
             pkt = q.get(timeout=1)
             get_packet(pkt)
-        except Empty:
-            pass
 
 
 def sniff_loopback(q):
+    # loop back interface - iface="Software Loopback Interface 1"
     sniff(prn=lambda x: q.put(x), filter="dst port 55559", iface="Software Loopback Interface 1")
 
 

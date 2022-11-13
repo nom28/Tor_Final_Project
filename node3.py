@@ -5,9 +5,8 @@ from queue import Queue, Empty
 from scapy.layers.inet import *
 
 
-from tools.layer import Layer
+from tools.layer_new import Layer
 
-data = b""
 node_layer = Layer()
 node_layer.change_keys("3")
 
@@ -21,12 +20,11 @@ def threaded_sniff_with_send():
     sniffer.start()
     time.sleep(1)  # just to make sure the sniffer doesn't override with future scapy functions.
     while not finished:
-        try:
+        if not q.empty():
             pkt = q.get(timeout=1)
             pkt = decrypt_packet(pkt.load)
-            send_data(pkt)
-        except (Empty, AttributeError):
-            pass
+            ip, port, session_id, data = pkt
+            send_data(data, ip, port)
 
 
 def sniff_loopback(q):
@@ -38,8 +36,8 @@ def decrypt_packet(data):
     return decrypted_data
 
 
-def send_data(data):
-    packet = IP(dst="127.0.0.1") / TCP(dport=55559, sport=55558) / Raw(data)
+def send_data(data, ip, port):
+    packet = IP(dst=ip) / TCP(dport=port, sport=55558) / Raw(data)
     send(packet)
 
 
