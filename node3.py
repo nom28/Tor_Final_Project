@@ -21,10 +21,13 @@ def threaded_sniff_with_send():
     time.sleep(1)  # just to make sure the sniffer doesn't override with future scapy functions.
     while not finished:
         if not q.empty():
-            pkt = q.get(timeout=1)
-            pkt = decrypt_packet(pkt.load)
-            ip, port, session_id, data = pkt
-            send_data(data, ip, port)
+            try:
+                pkt = q.get(timeout=1)
+                pkt = decrypt_packet(pkt.load)
+                ip, port, session_id, data = pkt
+                send_data(data, ip, port)
+            except AttributeError:
+                pass
 
 
 def sniff_loopback(q):

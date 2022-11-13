@@ -24,9 +24,11 @@ def threaded_sniff_with_send():
     sniffer.start()
     time.sleep(1)  # just to make sure the sniffer doesn't override with future scapy functions.
     while not finished:
-        if not q.empty():
+        try:  # for some reason "if q.empty():" causes messages to be collected only when the next one is received
             pkt = q.get(timeout=1)
             get_packet(pkt)
+        except Empty:
+            pass
 
 
 def sniff_loopback(q):
