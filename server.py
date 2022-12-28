@@ -1,10 +1,14 @@
-from scapy.all import *
+import warnings
+from cryptography.utils import CryptographyDeprecationWarning
 from threading import Thread
 import time
 from queue import Queue, Empty
-from scapy.layers.inet import *
 
 from tools.layer import Layer
+
+warnings.filterwarnings("ignore", category=CryptographyDeprecationWarning)
+from scapy.layers.inet import *
+from scapy.all import *
 
 data = b""
 """
@@ -21,10 +25,12 @@ personal_port = 55559
 
 def threaded_sniff_with_send():
     q = Queue()
+    print("initiating sniffer")
     sniffer = Thread(target=sniff_loopback, args=(q,))
     sniffer.daemon = True
     sniffer.start()
     time.sleep(1)  # just to make sure the sniffer doesn't override with future scapy functions.
+    print("sniffer initiated - listening")
     while not finished:
         try:  # for some reason "if q.empty():" causes messages to be collected only when the next one is received
             pkt = q.get(timeout=1)

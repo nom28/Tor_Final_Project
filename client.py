@@ -1,9 +1,13 @@
-from scapy.all import *
-from scapy.layers.inet import *
+import warnings
+from cryptography.utils import CryptographyDeprecationWarning
 import time
 from queue import *
 
 from tools.layer_new import Layer
+
+warnings.filterwarnings("ignore", category=CryptographyDeprecationWarning)
+from scapy.all import *
+from scapy.layers.inet import *
 
 layer0 = Layer()
 layer0.change_keys("0")
@@ -54,10 +58,12 @@ def full_encrypt(data):
 
 def threaded_sniff():
     q = Queue()
+    print("initiating sniffer")
     sniffer = Thread(target=sniff_loopback, args=(q,))
     sniffer.daemon = True
     sniffer.start()
     time.sleep(1)  # just to make sure the sniffer doesn't override with future scapy functions.
+    print("sniffer initiated - listening")
     while not finished:
         if not q.empty():
             try:
@@ -89,6 +95,7 @@ def sniff_loopback(q):
 
 
 if __name__ == '__main__':
+    print("client started")
     send_data(b"hello")
     threaded_sniff()
     """

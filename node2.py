@@ -1,10 +1,14 @@
-from scapy.all import *
+import warnings
+from cryptography.utils import CryptographyDeprecationWarning
 from threading import Thread
 import time
 from queue import Queue, Empty
-from scapy.layers.inet import *
 
 from tools.layer_new import Layer
+
+warnings.filterwarnings("ignore", category=CryptographyDeprecationWarning)
+from scapy.all import *
+from scapy.layers.inet import *
 
 # CLIENT KEY - temporary
 layer0 = Layer()
