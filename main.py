@@ -31,13 +31,13 @@ def threaded_sniff_with_send():
             if TCP not in pkt:
                 continue
             if pkt[TCP].ack == 1:
-                print("got ack")
+                print("ack")
                 continue
             # pkt.show()
             if not previous_comp_address:
                 previous_comp_address.append(pkt[IP].src)
                 previous_comp_address.append(pkt[TCP].sport)
-            pkt.show()
+            # pkt.show()
             get_packet(pkt)
         except Empty:
             pass
@@ -54,7 +54,6 @@ def get_packet(packet):
     print(d)
 
     if d == b"DONE":
-        print("need to reply")
         reply("returning")
 
 
@@ -73,7 +72,7 @@ def reply(data):
             data = data[16384:]
         else:
             packet = IP(dst="127.0.0.1") / TCP(dport=previous_comp_address[1], sport=personal_port) / Raw(data)
-            packet.show()
+            # packet.show()
             send(packet)
             # ending argument
             break

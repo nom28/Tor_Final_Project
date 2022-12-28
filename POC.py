@@ -25,18 +25,17 @@ finished = False
 
 def send_data(data):
     while len(data) > 0:
-        print(len(data))
+        print(data)
         # time.sleep(0.1)
         if len(data) > 16384:
             encrypted_data = full_encrypt(data[:16384])
             packet = IP(dst=ip) / TCP(dport=ports[0], sport=personal_port) / Raw(encrypted_data)
-            print(packet.load)
             send(packet)
             data = data[16384:]
         else:
             encrypted_data = full_encrypt(data)
             packet = IP(dst=ip) / TCP(dport=ports[0], sport=personal_port) / Raw(encrypted_data)
-            packet.show()
+            # packet.show()
             send(packet)
             # ending argument
             break
@@ -66,7 +65,7 @@ def threaded_sniff():
                 if TCP not in pkt:
                     continue
                 if pkt[TCP].ack == 1:
-                    print("got ack")
+                    print("ack")
                     continue
                 # pkt.show()
 
