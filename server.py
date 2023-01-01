@@ -59,8 +59,7 @@ def get_packet(packet):
     d = packet.load
     print(d)
 
-    if d == b"DONE":
-        reply("returning")
+    reply(f"echo {d}")
 
 
 def reply(data):
@@ -103,5 +102,8 @@ def decrypt_packet(data):
     return decrypted_data
 """
 
+if __name__ == '__main__':
+    if len(sys.argv) > 1:
+        personal_port = int(sys.argv[1])
 
 threaded_sniff_with_send()

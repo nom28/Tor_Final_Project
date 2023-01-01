@@ -1,6 +1,6 @@
 import subprocess
 from threading import *
-
+import random
 port = 55556
 nodes = []
 
@@ -15,4 +15,6 @@ for x in range(1, 4):
     nodes[x-1].start()
     port += 1
 print(nodes)
+
+
 
