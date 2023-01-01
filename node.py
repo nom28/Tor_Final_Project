@@ -74,8 +74,9 @@ def threaded_sniff_with_send():
                 pass
 
 
+# "Software Loopback Interface 1"
 def sniff_loopback(q):
-    sniff(prn=lambda x: q.put(x), filter=f"dst port {personal_port}", iface="Software Loopback Interface 1")
+    sniff(prn=lambda x: q.put(x), filter=f"dst port {personal_port}", iface="\\Device\\NPF_Loopback")
 
 
 def decrypt_packet(data):

@@ -102,7 +102,7 @@ def decrypt_packet(data):
 
 
 def sniff_loopback(q):
-    sniff(prn=lambda x: q.put(x), filter=f"dst port {personal_port}", iface="Software Loopback Interface 1")
+    sniff(prn=lambda x: q.put(x), filter=f"dst port {personal_port}", iface="\\Device\\NPF_Loopback")
 
 
 if __name__ == '__main__':

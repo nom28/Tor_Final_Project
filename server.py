@@ -51,7 +51,7 @@ def threaded_sniff_with_send():
 
 def sniff_loopback(q):
     # loop back interface - iface="Software Loopback Interface 1"
-    sniff(prn=lambda x: q.put(x), filter=f"dst port {personal_port}", iface="Software Loopback Interface 1")
+    sniff(prn=lambda x: q.put(x), filter=f"dst port {personal_port}", iface="\\Device\\NPF_Loopback")
 
 
 def get_packet(packet):
@@ -81,10 +81,11 @@ def reply(data):
             send(packet)
             # ending argument
             break
-            
+    """        
     done_argument = b"DONE"
     packet = IP(dst="127.0.0.1") / TCP(dport=previous_comp_address[1], sport=personal_port) / Raw(done_argument)
     send(packet)
+    """
 
 
 # only for pictures
