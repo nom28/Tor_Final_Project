@@ -10,24 +10,28 @@ warnings.filterwarnings("ignore", category=CryptographyDeprecationWarning)
 from scapy.all import *
 from scapy.layers.inet import *
 
+
 # CLIENT KEY - temporary
 layer0 = Layer()
 layer0.change_keys("0")
 
 node_layer = Layer()
-node_layer.change_keys("2")
 
 finished = False
 previous_comp_address = []
-personal_port = 55557
+
+sk_to_dst = {}
+src_to_sk = {}
 
 
 def threaded_sniff_with_send():
     q = Queue()
+    print("initiating sniffer")
     sniffer = Thread(target=sniff_loopback, args=(q,))
     sniffer.daemon = True
     sniffer.start()
     time.sleep(1)  # just to make sure the sniffer doesn't override with future scapy functions.
+    print("sniffer initiated - listening")
     while not finished:
         if not q.empty():
             try:
@@ -35,22 +39,37 @@ def threaded_sniff_with_send():
                 if TCP not in pkt:
                     continue
                 if pkt[TCP].ack == 1:
-                    print("got ack")
+                    print("ack")
                     continue
                 # pkt.show()
+                src = pkt[IP].src
+                sport = pkt[TCP].sport
+                pkt_address = stringify([src, sport])
+                print(pkt_address)
                 if not previous_comp_address:
-                    previous_comp_address.append(pkt[IP].src)
-                    previous_comp_address.append(pkt[TCP].sport)
-                pkt.show()
-                if pkt[IP].src == previous_comp_address[0] and pkt[TCP].sport == previous_comp_address[1]:
+                    previous_comp_address.append(src)
+                    previous_comp_address.append(sport)
+                # if src == previous_comp_address[0] and sport == previous_comp_address[1]:
+                if pkt_address in sk_to_dst.values() or pkt_address not in src_to_sk:
                     pkt = decrypt_packet(pkt.load)
                     ip, port, session_id, data = pkt
-                    send_data(data, ip, port)
-                else:
-                    data = encrypt_packet(pkt.load)
-                    send_data(data, previous_comp_address[0], previous_comp_address[1])
-                    print(f"got response:{pkt.load}")
 
+                    if session_id not in src_to_sk.values():
+                        src_to_sk[stringify([ip, port])] = session_id
+                    if session_id not in sk_to_dst:
+                        sk_to_dst[session_id] = pkt_address
+
+                    send_data(data, ip, port)
+                    print(f"{key_num}-->")
+                else:
+                    if pkt_address not in src_to_sk:
+                        print("very interesting")
+                        exit()
+                    session_id = src_to_sk[pkt_address]
+                    address = eval(sk_to_dst[session_id])
+                    data = encrypt_packet(pkt.load)
+                    send_data(data, address[0], int(address[1]))
+                    print(f"{address}<--{key_num}")
             except AttributeError:
                 pass
 
@@ -74,4 +93,16 @@ def send_data(data, ip, port):
     send(packet)
 
 
-threaded_sniff_with_send()
+def stringify(lst):
+    lst = map(str, lst)
+    string = "['"+"', '".join(lst)+"']"
+    return string
+
+
+if __name__ == '__main__':
+    if len(sys.argv) > 1:
+        personal_port = int(sys.argv[1])
+        key_num = sys.argv[2]
+
+        node_layer.change_keys(key_num)
+    threaded_sniff_with_send()

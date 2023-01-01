@@ -27,7 +27,7 @@ class Layer:
             encryption_algorithm=serialization.NoEncryption()
         )
 
-        with open('private_key'+sufix+'.pem', 'wb') as f:
+        with open('keys\\private_key'+sufix+'.pem', 'wb') as f:
             f.write(pem)
 
         pem = self.public_key.public_bytes(
@@ -35,31 +35,30 @@ class Layer:
             format=serialization.PublicFormat.SubjectPublicKeyInfo
         )
 
-        with open('public_key'+sufix+'.pem', 'wb') as f:
+        with open('keys\\public_key'+sufix+'.pem', 'wb') as f:
             f.write(pem)
 
     def change_keys(self, sufix):
-        with open('private_key'+sufix+'.pem', 'rb') as key_file:
+        with open('keys\\private_key'+sufix+'.pem', 'rb') as key_file:
             self.private_key = serialization.load_pem_private_key(
                 key_file.read(),
                 password=None,
                 backend=default_backend()
             )
 
-        with open('public_key'+sufix+'.pem', 'rb') as key_file:
+        with open('keys\\public_key'+sufix+'.pem', 'rb') as key_file:
             self.public_key = serialization.load_pem_public_key(
                 key_file.read(),
                 backend=default_backend()
             )
 
-    def encrypt(self, data, session_id, ip="127.0.0.1", port="55556"):
+    def encrypt(self, data, session_id=b"", ip="127.0.0.1", port="55556"):
         # could be possible to move data in heading to the payload.
         self.f = Fernet(self.key)
         encrypted_data = self.f.encrypt(data)
 
         hex_ip = self.ip_to_hex(ip).encode('utf-8')
         heading = self.key+hex_ip+port.encode('utf-8')+session_id
-        print(len(heading))
 
         encrypted_heading = self.public_key.encrypt(
             heading,
@@ -69,7 +68,25 @@ class Layer:
                 label=None
             )
         )
-        print(len(encrypted_heading))
+        product = encrypted_heading + encrypted_data
+
+        return product
+
+    def b_encrypt(self, data, session_id=b""):
+        # could be possible to move data in heading to the payload.
+        self.f = Fernet(self.key)
+        encrypted_data = self.f.encrypt(data)
+
+        heading = self.key+session_id
+
+        encrypted_heading = self.public_key.encrypt(
+            heading,
+            padding.OAEP(
+                mgf=padding.MGF1(algorithm=hashes.SHA256()),
+                algorithm=hashes.SHA256(),
+                label=None
+            )
+        )
         product = encrypted_heading + encrypted_data
 
         return product
@@ -84,7 +101,6 @@ class Layer:
                 label=None
             )
         )
-        print(decrypted_heading)
         decrypted_key = decrypted_heading[:44]
         decrypted_heading = decrypted_heading[44:]
 
@@ -99,6 +115,25 @@ class Layer:
         encrypted_data = encrypted_data[256:]
         f = Fernet(decrypted_key)
         return [decrypted_ip, decrypted_port, decrypted_session_id, f.decrypt(encrypted_data)]
+
+    def b_decrypt(self, encrypted_data):
+        encrypted_heading = encrypted_data[:256]
+        decrypted_heading = self.private_key.decrypt(
+            encrypted_heading,
+            padding.OAEP(
+                mgf=padding.MGF1(algorithm=hashes.SHA256()),
+                algorithm=hashes.SHA256(),
+                label=None
+            )
+        )
+        decrypted_key = decrypted_heading[:44]
+        decrypted_heading = decrypted_heading[44:]
+
+        decrypted_session_id = decrypted_heading
+
+        encrypted_data = encrypted_data[256:]
+        f = Fernet(decrypted_key)
+        return [decrypted_session_id, f.decrypt(encrypted_data)]
 
     @staticmethod
     def ip_to_hex(ip):
