@@ -1,12 +1,12 @@
 import subprocess
 from threading import *
-import random
+import random  # NOQA
 port = 55556
 nodes = []
 
 
-def run_node(port, key_num):
-    subprocess.run(f"python node.py {port} {key_num}")
+def run_node(self_port, key_num):
+    subprocess.run(f"python node.py {self_port} {key_num}")
 
 
 for x in range(1, 4):
@@ -15,6 +15,3 @@ for x in range(1, 4):
     nodes[x-1].start()
     port += 1
 print(nodes)
-
-
-
