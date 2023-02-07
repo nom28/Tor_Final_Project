@@ -1,12 +1,10 @@
-import warnings
-from cryptography.utils import CryptographyDeprecationWarning
+
 from threading import Thread
 import time
 from queue import Queue, Empty
 
 from tools.layer import Layer
 
-warnings.filterwarnings("ignore", category=CryptographyDeprecationWarning)
 from scapy.layers.inet import *
 from scapy.all import *
 
@@ -50,16 +48,16 @@ def threaded_sniff_with_send():
 
 
 def sniff_loopback(q):
-    # loop back interface - iface="Software Loopback Interface 1"
+    # loop back interface - iface="Software Loopback Interface 1" or iface="\\Device\\NPF_Loopback"
+    print(show_interfaces())
     sniff(prn=lambda x: q.put(x), filter=f"dst port {personal_port}", iface="\\Device\\NPF_Loopback")
 
 
 def get_packet(packet):
     global data
     d = packet.load
-    print(d)
-
-    reply(f"echo {d}")
+    print(d.decode())
+    reply(f"echo {d.decode()}")
 
 
 def reply(data):
@@ -71,12 +69,12 @@ def reply(data):
     while len(data) > 0:
         if len(data) > 16384:
             sendable_data = data[:16384]
-            packet = IP(dst="127.0.0.1") / TCP(dport=previous_comp_address[1], sport=personal_port) / Raw(sendable_data)
+            packet = IP(dst="10.100.102.114") / TCP(dport=previous_comp_address[1], sport=personal_port) / Raw(sendable_data)
             print(packet.load)
             send(packet)
             data = data[16384:]
         else:
-            packet = IP(dst="127.0.0.1") / TCP(dport=previous_comp_address[1], sport=personal_port) / Raw(data)
+            packet = IP(dst="10.100.102.114") / TCP(dport=previous_comp_address[1], sport=personal_port) / Raw(data)
             # packet.show()
             send(packet)
             # ending argument

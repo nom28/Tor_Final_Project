@@ -1,7 +1,6 @@
-import sys
+import pydivert
 import warnings
 from cryptography.utils import CryptographyDeprecationWarning
-import time
 from queue import *
 
 from tools.layer_new import Layer
@@ -9,6 +8,7 @@ from tools.layer_new import Layer
 warnings.filterwarnings("ignore", category=CryptographyDeprecationWarning)
 from scapy.all import *
 from scapy.layers.inet import *
+
 
 layer0 = Layer()
 layer0.change_keys("0")
@@ -30,30 +30,33 @@ finished = False
 test_send_data = b"hello"
 
 
-def send_data(data):
+def send_data(pkt):
+    port = pkt.tcp.src_port
+    dst_ip = pkt.ipv4.dst_addr
+    data = pkt.payload
     while len(data) > 0:
         print(data)
         # time.sleep(0.1)
         if len(data) > 16384:
-            encrypted_data = full_encrypt(data[:16384])
-            packet = IP(dst=ip) / TCP(dport=ports[0], sport=personal_port) / Raw(encrypted_data)
+            encrypted_data = full_encrypt(data[:16384], dst_ip)
+            packet = IP(dst=ip) / TCP(dport=ports[0], sport=port) / Raw(encrypted_data)
             send(packet)
             data = data[16384:]
         else:
-            encrypted_data = full_encrypt(data)
-            packet = IP(dst=ip) / TCP(dport=ports[0], sport=personal_port) / Raw(encrypted_data)
+            encrypted_data = full_encrypt(data, dst_ip)
+            packet = IP(dst=ip) / TCP(dport=ports[0], sport=port) / Raw(encrypted_data)
             # packet.show()
             send(packet)
             # ending argument
             break
 
-    done_argument = full_encrypt(b"DONE")
-    packet = IP(dst=ip) / TCP(dport=ports[0], sport=personal_port) / Raw(done_argument)
-    send(packet)
+    """done_argument = full_encrypt(b"DONE")
+    packet = IP(dst=ip) / TCP(dport=ports[0], sport=port) / Raw(done_argument)
+    send(packet)"""
 
 
-def full_encrypt(data):
-    encrypted_data = layer3.encrypt(data, session_id, ip, str(ports[3]))
+def full_encrypt(data, dst_ip):
+    encrypted_data = layer3.encrypt(data, session_id, dst_ip, str(ports[3]))
     encrypted_data = layer2.encrypt(encrypted_data, session_id, ip, str(ports[2]))
     encrypted_data = layer1.encrypt(encrypted_data, session_id, ip, str(ports[1]))
     return encrypted_data
@@ -61,20 +64,18 @@ def full_encrypt(data):
 
 def threaded_sniff():
     q = Queue()
-    print("initiating sniffer")
+
+    # when using pydivert, I will most likly not need to use this sniff function, and use the pydivert instead.
+    """print("initiating sniffer")
     sniffer = Thread(target=sniff_loopback, args=(q,))
     sniffer.daemon = True
     sniffer.start()
     time.sleep(1)  # just to make sure the sniffer doesn't override with future scapy functions.
-    print("sniffer initiated - listening")
+    print("sniffer initiated - listening")"""
 
-    # ----SEND TESTING AREA----
-    send_data(test_send_data)
-    # -------------------------
 
     while not finished:
         if not q.empty():
-            print("got Pkt")
             try:
                 pkt = q.get()
                 if TCP not in pkt:
@@ -82,9 +83,9 @@ def threaded_sniff():
                 if pkt[TCP].ack == 1:
                     print("ack")
                     continue
-                # pkt.show()
+                pkt.show()
                 data = decrypt_packet(pkt.load)
-                print(data)
+                # print(data)
                 print("---------")
                 time.sleep(0.1)
             except AttributeError:
@@ -105,11 +106,43 @@ def sniff_loopback(q):
     sniff(prn=lambda x: q.put(x), filter=f"dst port {personal_port}", iface="\\Device\\NPF_Loopback")
 
 
+def packet_handle():
+    #  and not tcp.Ack and inbound
+    filter_expression = "(tcp.SrcPort == 55554 or tcp.DstPort == 55554) and outbound"
+
+    # Open a handle to the network stack
+    with pydivert.WinDivert(filter_expression) as handle:
+        for packet in handle:
+            print("--------------------")
+            print(packet.tcp.src_port)
+            print(packet.tcp.dst_port)
+            print("--------------------")
+            # Access packet information
+            if packet.tcp.src_port == 55554:
+                data = packet.payload
+                encrypted_data = full_encrypt(data, packet.ipv4.dst_addr)
+                packet.payload = encrypted_data
+                packet.tcp.dst_port = ports[0]
+                handle.send(packet)
+            elif packet.tcp.dst_port == 55554:
+                if packet.tcp.ack:
+                    handle.send(packet)
+                    continue
+                print(packet.payload)
+                data = decrypt_packet(packet.payload)
+                packet.payload = data
+                handle.send(packet)
+            else:
+                print("rouge packet")
+                handle.send(packet)
+
+
 if __name__ == '__main__':
     if len(sys.argv) > 1:
         personal_port = int(sys.argv[1])
         test_send_data = bytes(sys.argv[2].encode("utf-8"))
         ports[3] = int(sys.argv[3])
     print("client started")
-    threaded_sniff()
+    # threaded_sniff()
+    packet_handle()
 

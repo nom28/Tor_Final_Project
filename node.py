@@ -36,6 +36,7 @@ def threaded_sniff_with_send():
         if not q.empty():
             try:
                 pkt = q.get(timeout=1)
+                print("got pkt")
                 if TCP not in pkt:
                     continue
                 if pkt[TCP].ack == 1:
