@@ -108,23 +108,29 @@ def sniff_loopback(q):
 
 def packet_handle():
     #  and not tcp.Ack and inbound
-    filter_expression = "(tcp.SrcPort == 55554 or tcp.DstPort == 55554) and outbound"
+    # filter_expression = "(tcp.SrcPort == 55554 or tcp.DstPort == 55554) and outbound"
+    filter_expression = "tcp"
 
     # Open a handle to the network stack
     with pydivert.WinDivert(filter_expression) as handle:
         for packet in handle:
-            print("--------------------")
-            print(packet.tcp.src_port)
-            print(packet.tcp.dst_port)
-            print("--------------------")
+            print(packet.ip.dst_addr)
             # Access packet information
             if packet.tcp.src_port == 55554:
+                print("--------------------")
+                print(packet.tcp.src_port)
+                print(packet.tcp.dst_port)
+                print("--------------------")
                 data = packet.payload
                 encrypted_data = full_encrypt(data, packet.ipv4.dst_addr)
                 packet.payload = encrypted_data
                 packet.tcp.dst_port = ports[0]
                 handle.send(packet)
             elif packet.tcp.dst_port == 55554:
+                print("--------------------")
+                print(packet.tcp.src_port)
+                print(packet.tcp.dst_port)
+                print("--------------------")
                 if packet.tcp.ack:
                     handle.send(packet)
                     continue

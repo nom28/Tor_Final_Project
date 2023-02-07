@@ -42,6 +42,7 @@ def threaded_sniff_with_send():
                 previous_comp_address.append(pkt[IP].src)
                 previous_comp_address.append(pkt[TCP].sport)
             # pkt.show()
+
             get_packet(pkt)
         except Empty:
             pass
@@ -56,11 +57,13 @@ def sniff_loopback(q):
 def get_packet(packet):
     global data
     d = packet.load
+    src = packet[IP].src
+    sport = packet[TCP].sport
     print(d.decode())
-    reply(f"echo {d.decode()}")
+    reply(f"echo {d.decode()}", src, sport)
 
 
-def reply(data):
+def reply(data, ip, port):
     """
     Sends back replies on received messages to imitate a server
     :param data: The data that is to be replied
@@ -69,12 +72,12 @@ def reply(data):
     while len(data) > 0:
         if len(data) > 16384:
             sendable_data = data[:16384]
-            packet = IP(dst="10.100.102.114") / TCP(dport=previous_comp_address[1], sport=personal_port) / Raw(sendable_data)
+            packet = IP(dst=ip) / TCP(dport=previous_comp_address[1], sport=personal_port) / Raw(sendable_data)
             print(packet.load)
             send(packet)
             data = data[16384:]
         else:
-            packet = IP(dst="10.100.102.114") / TCP(dport=previous_comp_address[1], sport=personal_port) / Raw(data)
+            packet = IP(dst=ip) / TCP(dport=previous_comp_address[1], sport=personal_port) / Raw(data)
             # packet.show()
             send(packet)
             # ending argument

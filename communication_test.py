@@ -1,16 +1,17 @@
+import scapy.interfaces
 from scapy.all import *
 from scapy.layers.inet import *
 from queue import *
 
-src_ip = "127.0.0.1"
-dst_ip = "10.100.102.105"
+src_ip = "10.0.0.42"
+dst_ip = "10.0.0.24"
 dst_port = 55559
 personal_port = 55554
 finished = False
 
 
 def sniff_loopback(q):
-    sniff(prn=lambda x: q.put(x), filter=f"dst port {personal_port}", iface="\\Device\\NPF_Loopback")
+    sniff(prn=lambda x: q.put(x), filter=f"dst port {personal_port}", iface="Wi-Fi")
 
 
 def send_data(data):
@@ -47,6 +48,8 @@ def threaded_sniff():
     sender.start()
     print("sender initiated")
 
+    print(scapy.interfaces.show_interfaces())
+
     while not finished:
         if not q.empty():
             try:
@@ -58,7 +61,9 @@ def threaded_sniff():
                     continue
                 # pkt.show()
                 data = pkt.load
+                print("---------")
                 print(data)
+                print(pkt)
                 print("---------")
                 time.sleep(0.00001)
             except AttributeError:
