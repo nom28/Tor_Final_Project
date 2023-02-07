@@ -62,16 +62,17 @@ def full_encrypt(data, dst_ip):
     return encrypted_data
 
 
+"""
 def threaded_sniff():
     q = Queue()
 
     # when using pydivert, I will most likly not need to use this sniff function, and use the pydivert instead.
-    """print("initiating sniffer")
+    print("initiating sniffer")
     sniffer = Thread(target=sniff_loopback, args=(q,))
     sniffer.daemon = True
     sniffer.start()
     time.sleep(1)  # just to make sure the sniffer doesn't override with future scapy functions.
-    print("sniffer initiated - listening")"""
+    print("sniffer initiated - listening")
 
 
     while not finished:
@@ -93,6 +94,7 @@ def threaded_sniff():
         else:
             # do not really understand why this is needed, but does not print all packets if not.
             time.sleep(0.01)
+"""
 
 
 def decrypt_packet(data):
@@ -102,9 +104,10 @@ def decrypt_packet(data):
     return decrypted_data
 
 
+"""
 def sniff_loopback(q):
     sniff(prn=lambda x: q.put(x), filter=f"dst port {personal_port}", iface="\\Device\\NPF_Loopback")
-
+"""
 
 def packet_handle():
     #  and not tcp.Ack and inbound
@@ -113,34 +116,36 @@ def packet_handle():
 
     # Open a handle to the network stack
     with pydivert.WinDivert(filter_expression) as handle:
-        for packet in handle:
-            print(packet.ip.dst_addr)
+        for pkt in handle:
+            print(pkt.ip.dst_addr)
+            print(pkt.ip.src_addr)
             # Access packet information
-            if packet.tcp.src_port == 55554:
+            if pkt.tcp.src_port == 55554:
                 print("--------------------")
-                print(packet.tcp.src_port)
-                print(packet.tcp.dst_port)
+                print(pkt.tcp.src_port)
+                print(pkt.tcp.dst_port)
                 print("--------------------")
-                data = packet.payload
-                encrypted_data = full_encrypt(data, packet.ipv4.dst_addr)
-                packet.payload = encrypted_data
-                packet.tcp.dst_port = ports[0]
-                handle.send(packet)
-            elif packet.tcp.dst_port == 55554:
+                data = pkt.payload
+                encrypted_data = full_encrypt(data, pkt.ipv4.dst_addr)
+                pkt.payload = encrypted_data
+                pkt.tcp.dst_port = ports[0]
+            elif pkt.tcp.dst_port == 55554:
                 print("--------------------")
-                print(packet.tcp.src_port)
-                print(packet.tcp.dst_port)
+                print(pkt.tcp.src_port)
+                print(pkt.tcp.dst_port)
                 print("--------------------")
-                if packet.tcp.ack:
-                    handle.send(packet)
+                if pkt.tcp.ack:
+                    handle.send(pkt)
                     continue
-                print(packet.payload)
-                data = decrypt_packet(packet.payload)
-                packet.payload = data
-                handle.send(packet)
+                print(pkt.payload)
+                try:
+                    data = decrypt_packet(pkt.payload)
+                    pkt.payload = data
+                except ValueError:
+                    print("A terrible Error has accured.")
             else:
-                print("rouge packet")
-                handle.send(packet)
+                print("rogue packet")
+            # handle.send(pkt)
 
 
 if __name__ == '__main__':
