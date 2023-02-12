@@ -1,7 +1,7 @@
-
 from threading import Thread
 import time
 from queue import Queue, Empty
+import socket
 
 from tools.layer import Layer
 
@@ -9,13 +9,6 @@ from scapy.layers.inet import *
 from scapy.all import *
 
 data = b""
-"""
-layer1 = Layer()
-layer1.change_keys("1")
-layer2 = Layer()
-layer2.change_keys("2")
-"""
-
 finished = False
 previous_comp_address = []
 personal_port = 55559
@@ -51,7 +44,8 @@ def threaded_sniff_with_send():
 def sniff_loopback(q):
     # loop back interface - iface="Software Loopback Interface 1" or iface="\\Device\\NPF_Loopback"
     print(show_interfaces())
-    sniff(prn=lambda x: q.put(x), filter=f"dst port {personal_port}", iface="\\Device\\NPF_Loopback")
+    print(scapy.interfaces.show_interfaces())
+    sniff(prn=lambda x: q.put(x), filter=f"dst port {personal_port}", iface="Intel(R) Ethernet Connection (7) I219-V")
 
 
 def get_packet(packet):
