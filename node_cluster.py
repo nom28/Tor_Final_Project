@@ -2,6 +2,7 @@ import multiprocessing
 import threading
 import subprocess
 import random  # NOQA
+import time
 port = 55556
 nodes = []
 default = 55560
@@ -18,8 +19,8 @@ if __name__ == '__main__':
         nodes[x-1].start()
         default += 10
         port += 1
+        time.sleep(0.1)
     print(nodes)
-
     nodes[0].join()
     nodes[1].join()
     nodes[2].join()
