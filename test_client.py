@@ -3,11 +3,13 @@ import socket
 # Create a socket for the client
 client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-client_socket.bind(("10.0.0.24", 55554))
+client_socket.bind(("10.0.0.42", 55554))
 
 # Connect the socket to the server
 server_address = ("10.0.0.24", 55559)
 client_socket.connect(server_address)
+
+client_socket.sendall(b"this is a test :)")
 
 # Loop to allow the user to input data to be sent to the server
 while True:
