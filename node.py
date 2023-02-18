@@ -90,11 +90,11 @@ def packet_handle():
                 if pkt.tcp.rst:
                     continue
                 print(pkt.src_addr, ":", pkt.src_port, "-->", pkt.dst_addr, ":", pkt.dst_port)
-                src_addr = stringify([pkt.src_addr, pkt.src_port])
 
                 dst_addr, dst_port = eval(prev_addr_to_ports.get_key(pkt.dst_port))
-
+                print("---", dst_addr, dst_port)
                 if pkt.tcp.payload:  # When packets do not have payload such as SYN packets this will not run
+                    print("has payload")
                     data = encrypt_packet(pkt.payload)
                     pkt.payload = data
 
@@ -103,7 +103,7 @@ def packet_handle():
 
                 pkt.dst_port = int(dst_port)
                 pkt.dst_addr = dst_addr
-
+                print(pkt)
             handle.send(pkt)
 
 
