@@ -133,7 +133,8 @@ class Layer:
 
         encrypted_data = encrypted_data[256:]
         f = Fernet(decrypted_key)
-        return [decrypted_session_id, f.decrypt(encrypted_data)]
+        decrypted_data = f.decrypt(encrypted_data)
+        return [decrypted_data[:21], decrypted_data[21:]]
 
     @staticmethod
     def ip_to_hex(ip):
@@ -147,6 +148,10 @@ class Layer:
         ip = [int(i, 16) for i in octets]
         ip = '.'.join(str(i) for i in ip)
         return ip
+
+    @staticmethod
+    def static_port_size(port):
+        return str(port).zfill(5)
 
 
 if __name__ == '__main__':

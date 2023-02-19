@@ -34,11 +34,16 @@ def encrypt_packet(data, dst_ip, dst_port):
 
 
 def decrypt_packet(data):
-    decrypted_data = layer0.b_decrypt(data)
+    src_addr, decrypted_data = layer0.b_decrypt(data)
     if MODE == "THREE":
-        decrypted_data = layer0.b_decrypt(decrypted_data[1])
-        decrypted_data = layer0.b_decrypt(decrypted_data[1])
-    return decrypted_data
+        src_addr, decrypted_data = layer0.b_decrypt(decrypted_data[1])
+        src_addr, decrypted_data = layer0.b_decrypt(decrypted_data[1])
+    return src_addr, decrypted_data
+
+
+def bytes_to_address(addr):
+    addr = eval(addr)
+    return Layer.hex_to_ip(addr[0]), int(addr[1])
 
 
 def packet_handle():
@@ -53,11 +58,6 @@ def packet_handle():
 
             # Access packet information
             if pkt.tcp.src_port == 55554:
-                """if pkt.tcp.ack:
-                    print("ack1")
-                    handle.send(pkt)
-                    continue"""
-
                 data = pkt.payload
                 encrypted_data = encrypt_packet(data, pkt.ipv4.dst_addr, pkt.tcp.dst_port)
                 pkt.payload = encrypted_data
@@ -66,23 +66,18 @@ def packet_handle():
                 pkt.tcp.dst_port = nodes[0][1]
 
             elif pkt.tcp.dst_port == 55554:
-                """if pkt.tcp.ack:
-                    print("ack2")
-                    handle.send(pkt)
-                    continue"""
-
-                print(pkt.payload)
                 try:
-                    data = decrypt_packet(pkt.payload)
+                    addr, data = decrypt_packet(pkt.payload)
                     pkt.payload = data
+
+                    src_ip, src_port = bytes_to_address(addr)
+                    pkt.src_addr = src_ip
+                    pkt.src_port = src_port
                 except ValueError:
                     print(pkt.tcp.ack, pkt.tcp.syn, pkt.tcp.rst, pkt.tcp.fin)
-                    # print(pkt)
-
-                pkt.tcp.src_port = 55559  # TODO: this is a temporary hard code
-
+                    raise
             else:
-                print("rogue packet humf")
+                print("preposterous")
 
             handle.send(pkt)
 
