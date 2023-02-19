@@ -50,6 +50,18 @@ def find_next_available_port():
             continue
 
 
+def address_to_bytes(ip, port):
+    """
+    :param ip:
+    :param port:
+    :return: address with fixed length of 21 as bytes
+    """
+    ip = Layer.ip_to_hex(ip)
+    port = Layer.static_port_size(port)
+    addr = stringify([ip, port])
+    return addr.encode()
+
+
 def packet_handle():
     #  and not tcp.Ack and inbound
     # filter_expression = "(tcp.SrcPort == 55554 or tcp.DstPort == 55554) and outbound"
@@ -79,7 +91,6 @@ def packet_handle():
                 dst_addr, dst_port, session_id, data = load
                 pkt.payload = data
 
-                print(prev_addr_to_ports.get_value(src_addr))
                 pkt.src_port = prev_addr_to_ports.get_value(src_addr)
                 pkt.src_addr = ip
 
@@ -89,21 +100,19 @@ def packet_handle():
             elif prev_addr_to_ports.has_this_value(pkt.dst_port):
                 if pkt.tcp.rst:
                     continue
+
                 print(pkt.src_addr, ":", pkt.src_port, "-->", pkt.dst_addr, ":", pkt.dst_port)
 
                 dst_addr, dst_port = eval(prev_addr_to_ports.get_key(pkt.dst_port))
-                print("---", dst_addr, dst_port)
-                if pkt.tcp.payload:  # When packets do not have payload such as SYN packets this will not run
-                    print("has payload")
-                    data = encrypt_packet(pkt.payload)
-                    pkt.payload = data
+
+                data = encrypt_packet(address_to_bytes(pkt.src_addr, pkt.src_port) + pkt.payload)
+                pkt.payload = data
 
                 pkt.src_port = personal_port
                 pkt.src_addr = ip
 
                 pkt.dst_port = int(dst_port)
                 pkt.dst_addr = dst_addr
-                print(pkt)
             handle.send(pkt)
 
 
