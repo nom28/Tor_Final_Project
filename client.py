@@ -59,19 +59,19 @@ class Client:
     def sniff_loopback(self):
         sniff(prn=lambda x: self.q.put(x), filter=f"dst port {self.personal_port}", iface="\\Device\\NPF_Loopback")
 
-    def send(self, data):
-        encrypted_data = self.full_encrypt(tb.int_to_bytes(len(data)))
+    def send(self, data, code_prefix):
+        encrypted_data = self.full_encrypt(code_prefix + tb.int_to_bytes(len(data)))
         packet = IP(dst=self.ip) / TCP(dport=self.ports[0], sport=self.personal_port) / Raw(encrypted_data)
         send(packet)
         while len(data) > 0:
             # time.sleep(0.1)
             if len(data) > 16384:
-                encrypted_data = self.full_encrypt(data[:16384])
+                encrypted_data = self.full_encrypt(code_prefix + data[:16384])
                 packet = IP(dst=self.ip) / TCP(dport=self.ports[0], sport=self.personal_port) / Raw(encrypted_data)
                 send(packet)
                 data = data[16384:]
             else:
-                encrypted_data = self.full_encrypt(data)
+                encrypted_data = self.full_encrypt(code_prefix + data)
                 packet = IP(dst=self.ip) / TCP(dport=self.ports[0], sport=self.personal_port) / Raw(encrypted_data)
                 send(packet)
                 break

@@ -60,25 +60,47 @@ def sniff_loopback(q):
 def get_packet(packet):
     # global data
     global conversations
-    global buffer
-    if buffer:
-        key = packet[IP].src + "#" + str(packet[TCP].sport)
-        load = packet.load
-        if key in conversations:
-            conversations[packet[IP].src + "#" + str(packet[TCP].sport)] += load
-        else:
-            conversations[packet[IP].src + "#" + str(packet[TCP].sport)] = load
+    global buffer  # global buffer means only one user can upload and download at the same time
 
-        buffer -= len(load)
-        print("buffer:", buffer)
-        if buffer <= 0:
-            upload(conversations[key])
-            del conversations[key]
-    else:
-        try:
-            buffer = tb.int_from_bytes(packet.load)
-        except Exception:
-            print(Exception)
+    key = packet[IP].src + "#" + str(packet[TCP].sport)
+    load = packet.load
+
+    code = load[:1]
+    if code == b"U":
+        if key in conversations:
+            upload_request(key, load[1:])
+        else:
+            buffer = tb.int_from_bytes(load[1:])
+            conversations[key] = [b"", buffer]
+        return
+    if code == b"D":
+        file_name = load[1:]
+        download(key, file_name)
+    if code == b"L":
+        page_number = load[1:]
+        send_list(key, page_number)
+
+
+def send_list(key, load):
+    pass
+
+
+def download(key, load):
+    pass
+
+
+def upload_request(key, load):
+    global conversations
+    if key not in conversations:
+        raise "this is wierd"
+
+    conversations[key][0] += load
+
+    conversations[key][1] -= len(load)
+    print("buffer:", conversations[key][1])
+    if conversations[key][1] <= 0:
+        upload(conversations[key][0])
+        del conversations[key]
 
 
 def upload(data):

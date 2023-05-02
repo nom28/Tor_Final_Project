@@ -57,7 +57,7 @@ class Gui:
             return
         try:
             with open(fn, "rb") as i:
-                self.c.send(i.read())
+                self.c.send(i.read(), b"U")
             self.release_root()
         except Exception as e:
             raise e
