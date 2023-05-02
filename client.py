@@ -5,6 +5,7 @@ import time
 from queue import *
 
 from tools.layer_new import Layer
+import tools.toolbox as tb
 
 warnings.filterwarnings("ignore", category=CryptographyDeprecationWarning)
 from scapy.all import *
@@ -27,10 +28,13 @@ personal_port = 55555
 finished = False
 
 
-test_send_data = b"hello"
+test_send_data = b"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+-="*300
 
 
 def send_data(data):
+    encrypted_data = full_encrypt(tb.int_to_bytes(len(data)))
+    packet = IP(dst=ip) / TCP(dport=ports[0], sport=personal_port) / Raw(encrypted_data)
+    send(packet)
     while len(data) > 0:
         print(data)
         # time.sleep(0.1)
@@ -69,7 +73,8 @@ def threaded_sniff():
     print("sniffer initiated - listening")
 
     # ----SEND TESTING AREA----
-    send_data(test_send_data)
+    with open("1mbFlower.jpg", "rb") as i:
+        send_data(i.read())
     # -------------------------
 
     while not finished:

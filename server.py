@@ -5,6 +5,7 @@ import time
 from queue import Queue, Empty
 
 from tools.layer import Layer
+import tools.toolbox as tb
 
 warnings.filterwarnings("ignore", category=CryptographyDeprecationWarning)
 from scapy.layers.inet import *
@@ -20,6 +21,8 @@ layer2.change_keys("2")
 
 finished = False
 previous_comp_address = []
+conversations = {}
+buffer = 0
 personal_port = 55559
 
 
@@ -55,11 +58,33 @@ def sniff_loopback(q):
 
 
 def get_packet(packet):
-    global data
-    d = packet.load
-    print(d)
+    # global data
+    global conversations
+    global buffer
+    if buffer:
+        key = packet[IP].src + "#" + str(packet[TCP].sport)
+        load = packet.load
+        if key in conversations:
+            conversations[packet[IP].src + "#" + str(packet[TCP].sport)] += load
+        else:
+            conversations[packet[IP].src + "#" + str(packet[TCP].sport)] = load
 
-    reply(f"echo {d}")
+        buffer -= len(load)
+        print("buffer:", buffer)
+        if buffer <= 0:
+            upload(conversations[key])
+            del conversations[key]
+    else:
+        try:
+            buffer = tb.int_from_bytes(packet.load)
+        except Exception:
+            print(Exception)
+
+
+def upload(data):
+    with open("server_photos/image1.jpg", "wb") as i:
+        i.write(data)
+    reply(b'upload complete')
 
 
 def reply(data):
