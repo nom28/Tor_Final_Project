@@ -31,7 +31,7 @@ class Client:
         self.layer2.change_keys("2")
         self.layer3.change_keys("3")
 
-    def sniffer(self):
+    def sniffer(self, q):
         print("initiating sniffer")
         sniffer = Thread(target=self.sniff_loopback)
         sniffer.daemon = True
@@ -46,13 +46,10 @@ class Client:
                     if TCP not in pkt:
                         continue
                     if pkt[TCP].ack == 1:
-                        print("Ack")
                         continue
                     # pkt.show()
                     data = self.decrypt_packet(pkt.load)
-                    print(data)
-                    print("---------")
-                    time.sleep(0.001)
+                    q.put(data[1])  # [0] is session key
                 except AttributeError:
                     raise
             else:
@@ -67,7 +64,6 @@ class Client:
         packet = IP(dst=self.ip) / TCP(dport=self.ports[0], sport=self.personal_port) / Raw(encrypted_data)
         send(packet)
         while len(data) > 0:
-            print(data)
             # time.sleep(0.1)
             if len(data) > 16384:
                 encrypted_data = self.full_encrypt(data[:16384])
