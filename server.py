@@ -84,6 +84,7 @@ def get_packet(packet):
 def upload(data):
     with open("server_photos/image1.jpg", "wb") as i:
         i.write(data)
+        time.sleep(0.001)
     reply(b'upload complete')
 
 
