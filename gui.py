@@ -5,6 +5,7 @@ import tkinter.messagebox as messagebox
 import queue
 from threading import Thread
 import os
+import configparser
 
 from client import Client
 import tools.toolbox as tb
@@ -18,6 +19,12 @@ class Gui:
     temp_mem = b''
 
     def __init__(self):
+        self.config = configparser.ConfigParser()
+        self.config.read('tools/client_settings.ini')
+        dir = self.config.get('Directories', 'LocalDir')
+        if dir:
+            self.local_dir = dir
+
         self.root = tk.Tk()
         self.root.geometry('150x150')
         self.button1 = tk.Button(self.root, text="upload", width=10, height=2, bg="light grey", fg="black",
@@ -31,7 +38,8 @@ class Gui:
         self.button2.pack(pady=5)
         self.button3.pack(pady=5)
 
-        self.button2.configure(state="disabled")
+        if not self.local_dir:
+            self.button2.configure(state="disabled")
 
         self.code_to_func = {
             b'\x9d\xb7\xe3': self.info_popbox,
@@ -81,14 +89,17 @@ class Gui:
 
     def b_set_local_dir(self):
         # Making sure directory is valid, if not ask for a new one.
+        self.local_dir = askdirectory()
         if not self.local_dir:
-            self.local_dir = askdirectory()
-            if not self.local_dir:
-                return
+            return
         if not os.path.isdir(self.local_dir):
             self.local_dir = ""
             return
 
+        self.config.read('tools/client_settings.ini')
+        self.config.set('Directories', 'LocalDir', self.local_dir)
+        with open('tools/client_settings.ini', 'w') as c:
+            self.config.write(c)
         self.button2.configure(state="normal")
 
     def b_download(self):
