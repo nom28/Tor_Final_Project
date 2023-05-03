@@ -1,6 +1,6 @@
 import time
 import tkinter as tk
-from tkinter.filedialog import askopenfilename, askdirectory
+from tkinter.filedialog import askdirectory, askopenfilenames
 import tkinter.messagebox as messagebox
 import queue
 from threading import Thread
@@ -26,7 +26,16 @@ class Gui:
             self.local_dir = dir
 
         self.root = tk.Tk()
-        self.root.geometry('150x150')
+        self.root.geometry('150x220')
+        self.root.configure(bg='white')
+
+        # Settings button gif
+        img = tk.PhotoImage(file="client_files/63-settings-cog.gif")
+        label = tk.Label(self.root, image=img, background='white')  # without "background='white'" is button-ier
+        label.bind("<Button-1>", self.b_settings)
+        label.grid(column=0, row=0, padx=1, pady=1)
+
+        # Actually button
         self.button1 = tk.Button(self.root, text="upload", width=10, height=2, bg="light grey", fg="black",
                                  command=self.b_upload)
         self.button2 = tk.Button(self.root, text="download", width=10, height=2, bg="light grey", fg="black",
@@ -34,9 +43,9 @@ class Gui:
         self.button3 = tk.Button(self.root, text="set local dir", width=10, height=2, bg="light grey", fg="black",
                                  command=self.b_set_local_dir)
 
-        self.button1.pack(pady=5)
-        self.button2.pack(pady=5)
-        self.button3.pack(pady=5)
+        self.button1.grid(column=1, row=1, pady=8, padx=5)
+        self.button2.grid(column=1, row=2, pady=8, padx=5)
+        self.button3.grid(column=1, row=3, pady=8, padx=5)
 
         if not self.local_dir:
             self.button2.configure(state="disabled")
@@ -46,7 +55,6 @@ class Gui:
             b'\x98\x16\xac': self.top_window,
             b'\xd3\xb6\xad': self.error_popbox,
             b'\xa7\x98\xa8': self.download_save
-
         }
 
         analyzer = Thread(target=self.analyzer)
@@ -74,15 +82,20 @@ class Gui:
             else:
                 time.sleep(0)
 
+    def b_settings(self, event):
+        print(event)
+        self.info_popbox('works')
+
     def b_upload(self):
         self.lock_root()
-        fn = askopenfilename()
-        if fn == '':  # prevents error if user decides to cancel
+        fns = askopenfilenames()
+        if fns == '':  # prevents error if user decides to cancel
             self.release_root()
             return
         try:
-            with open(fn, "rb") as i:
-                self.c.send(i.read(), b"U")
+            for fn in fns:
+                with open(fn, "rb") as i:
+                    self.c.send(i.read(), b"U")
             self.release_root()
         except Exception as e:
             raise e
