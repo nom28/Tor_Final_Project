@@ -21,6 +21,8 @@ class Gui:
     designated_file_name = ""
     temp_mem = b''
 
+    download_page_num = 0
+
     def __init__(self):
         self.config = configparser.ConfigParser()
         self.config.read('tools/client_settings.ini')
@@ -55,7 +57,7 @@ class Gui:
 
         self.code_to_func = {
             b'\x9d\xb7\xe3': self.info_popbox,
-            b'\x98\x16\xac': self.top_window,
+            b'\x98\x16\xac': self.file_list_cloud,
             b'\xd3\xb6\xad': self.error_popbox,
             b'\xa7\x98\xa8': self.download_save
         }
@@ -139,29 +141,59 @@ class Gui:
     def info_popbox(msg):
         messagebox.showinfo("Info", str(msg))
 
-    @staticmethod
-    def error_popbox(msg):
+    def error_popbox(self, msg):
+        if msg == b"page does not exist":
+            self.download_page_num -= 1
         messagebox.showerror("Error", str(msg))
 
+    def file_list_cloud(self, data):
+        for w in self.root.winfo_children():
+            if w.winfo_name() != "downloads":
+                continue
+            for item in w.winfo_children():
+                item.destroy()
+            self.add_options(w, eval(data))
+            return
+        self.top_window(data)
+
     def top_window(self, data):
+        # self.download_page_num = 0  # default value
         try:
             files = eval(data)
         except Exception as e:
             raise
 
-        window = tk.Toplevel(self.root)
+        window = tk.Toplevel(self.root, name="downloads")
         window.title("Picture List")
-        window.geometry("200x300")
+        window.geometry("300x300")
+
+        self.add_options(window, files)
+
+    def add_options(self, window, files):
         _vars = []
-        for file in files:
+        for i, file in enumerate(files):
             var = tk.IntVar()
             c = tk.Checkbutton(window, text=file, variable=var, onvalue=1, offvalue=0)
-            c.pack()
+            c.grid(row=i, column=0, columnspan=3, padx=20, sticky="w")
             _vars.append(var)
 
         d_button = tk.Button(window, text="Download", width=10, height=2, bg="light grey", fg="black",
                              command=lambda: self.download(_vars, files))
-        d_button.pack()
+        d_button.grid(row=i + 1, column=0, padx=15)
+
+        l_button = tk.Button(window, text="<", width=2, height=1, bg="light grey", fg="black",
+                             command=lambda: self.move_page(-1))
+        r_button = tk.Button(window, text=">", width=2, height=1, bg="light grey", fg="black",
+                             command=lambda: self.move_page(1))
+
+        l_button.grid(row=i + 1, column=1)
+        r_button.grid(row=i + 1, column=2)
+
+    def move_page(self, offset):
+        if self.download_page_num == 0 and offset < 0:
+            return
+        self.download_page_num = self.download_page_num + offset
+        self.c.send(str(self.download_page_num).encode(), b"L")
 
     def download(self, _vars, files):
         relevant_files = []
