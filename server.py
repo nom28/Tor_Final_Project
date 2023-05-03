@@ -1,4 +1,5 @@
 import os
+import pickle
 import warnings
 from cryptography.utils import CryptographyDeprecationWarning
 from threading import Thread
@@ -71,8 +72,9 @@ def get_packet(packet):
         if key in conversations:
             upload_request(key, load[1:])
         else:
-            buffer = tb.int_from_bytes(load[1:])
-            conversations[key] = [b"", buffer]
+            data = pickle.loads(load[1:])
+            buffer = data[0]
+            conversations[key] = [b"", buffer, data[1]]
         return
     if code == b"D":
         file_names = load[1:]
@@ -100,7 +102,7 @@ def download(key, file_names):
         with open("server_photos/"+file, "rb") as f:
             data = f.read()
             print(len(data))
-            reply(tb.int_to_bytes(len(data)), b'\xa7\x98\xa8')
+            reply(pickle.dumps([len(data), file]), b'\xa7\x98\xa8')
             reply(data, b'\xa7\x98\xa8')
 
 
@@ -114,13 +116,13 @@ def upload_request(key, load):
     conversations[key][1] -= len(load)
     print("buffer:", conversations[key][1])
     if conversations[key][1] <= 0:
-        upload(conversations[key][0])
+        upload(conversations[key][0], conversations[key][2])
         del conversations[key]
 
 
-def upload(data):
+def upload(data, file_name):
     i = int(time.time() * 10000)
-    with open(f"server_photos/file_{i}.jpg", "wb") as i:
+    with open(f"server_photos/{file_name}", "wb") as i:
         i.write(data)
         time.sleep(0.001)
     reply(b'upload complete', b'\x9d\xb7\xe3')

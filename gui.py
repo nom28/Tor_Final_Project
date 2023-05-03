@@ -6,9 +6,11 @@ import queue
 from threading import Thread
 import os
 import configparser
+import pickle
 
 from client import Client
 import tools.toolbox as tb
+
 
 class Gui:
     c = Client()
@@ -16,6 +18,7 @@ class Gui:
     local_dir = ""
 
     buffer = 0
+    designated_file_name = ""
     temp_mem = b''
 
     def __init__(self):
@@ -94,8 +97,11 @@ class Gui:
             return
         try:
             for fn in fns:
+                print(fn)
                 with open(fn, "rb") as i:
-                    self.c.send(i.read(), b"U")
+                    data = i.read()
+                    self.c.send(pickle.dumps([len(data), fn.split("/")[-1]]), b"U")  # [size, name + type]
+                    self.c.send(data, b"U")
             self.release_root()
         except Exception as e:
             raise e
@@ -168,7 +174,9 @@ class Gui:
         if self.buffer:
             self.save(data)
         else:
-            self.buffer = tb.int_from_bytes(data)
+            data = pickle.loads(data)
+            self.buffer = data[0]
+            self.designated_file_name = data[1]
             print("buffer:", self.buffer)
         return
 
@@ -180,10 +188,11 @@ class Gui:
         if self.buffer <= 0:
             i = int(time.time() * 10000)
 
-            with open(f"{self.local_dir}/file_{i}.jpg", "wb") as i:
+            with open(f"{self.local_dir}/{self.designated_file_name}", "wb") as i:
                 i.write(self.temp_mem)
                 print("saving")
             self.buffer = 0
+            self.designated_file_name = ""
             self.temp_mem = b''
             print("saved")
 
