@@ -1,3 +1,4 @@
+import os
 import warnings
 from cryptography.utils import CryptographyDeprecationWarning
 from threading import Thread
@@ -74,19 +75,33 @@ def get_packet(packet):
             conversations[key] = [b"", buffer]
         return
     if code == b"D":
-        file_name = load[1:]
-        download(key, file_name)
+        file_names = load[1:]
+        download(key, file_names)
     if code == b"L":
+        print("list request")
         page_number = load[1:]
         send_list(key, page_number)
 
 
 def send_list(key, load):
-    pass
+    entries = os.scandir("server_photos/")
+    entry_list = list_from_iter(entries)
+    list_len = len(entry_list)
+    index = int(load) * 10
+    if list_len <= index:
+        reply(b'page does not exist', b'\xd3\xb6\xad')
+        return
+    reply(str(entry_list[index:index+10]).encode('utf-8'), b'\x98\x16\xac')
 
 
-def download(key, load):
-    pass
+def download(key, file_names):
+    file_names = eval(file_names)
+    for file in file_names:
+        with open("server_photos/"+file, "rb") as f:
+            data = f.read()
+            print(len(data))
+            reply(tb.int_to_bytes(len(data)), b'\xa7\x98\xa8')
+            reply(data, b'\xa7\x98\xa8')
 
 
 def upload_request(key, load):
@@ -108,10 +123,10 @@ def upload(data):
     with open(f"server_photos/file_{i}.jpg", "wb") as i:
         i.write(data)
         time.sleep(0.001)
-    reply(b'\x9d\xb7\xe3upload complete')
+    reply(b'upload complete', b'\x9d\xb7\xe3')
 
 
-def reply(data):
+def reply(data, code_prefix):
     """
     Sends back replies on received messages to imitate a server
     :param data: The data that is to be replied
@@ -119,12 +134,13 @@ def reply(data):
     """
     while len(data) > 0:
         if len(data) > 16384:
-            sendable_data = data[:16384]
+            sendable_data = code_prefix + data[:16384]
             packet = IP(dst="127.0.0.1") / TCP(dport=previous_comp_address[1], sport=personal_port) / Raw(sendable_data)
             send(packet)
             data = data[16384:]
         else:
-            packet = IP(dst="127.0.0.1") / TCP(dport=previous_comp_address[1], sport=personal_port) / Raw(data)
+            sendable_data = code_prefix + data
+            packet = IP(dst="127.0.0.1") / TCP(dport=previous_comp_address[1], sport=personal_port) / Raw(sendable_data)
             # packet.show()
             send(packet)
             break
@@ -144,6 +160,14 @@ def decrypt_packet(data):
     print(decrypted_data)
     return decrypted_data
 """
+
+
+def list_from_iter(iter):
+    l = []
+    for i in iter:
+        l.append(i.name)
+    return l
+
 
 if __name__ == '__main__':
     if len(sys.argv) > 1:

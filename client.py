@@ -9,6 +9,7 @@ warnings.filterwarnings("ignore", category=CryptographyDeprecationWarning)
 from scapy.all import *
 from scapy.layers.inet import *
 
+
 class Client:
     layer0 = Layer()
     layer1 = Layer()
@@ -60,9 +61,10 @@ class Client:
         sniff(prn=lambda x: self.q.put(x), filter=f"dst port {self.personal_port}", iface="\\Device\\NPF_Loopback")
 
     def send(self, data, code_prefix):
-        encrypted_data = self.full_encrypt(code_prefix + tb.int_to_bytes(len(data)))
-        packet = IP(dst=self.ip) / TCP(dport=self.ports[0], sport=self.personal_port) / Raw(encrypted_data)
-        send(packet)
+        if code_prefix == b"U":
+            encrypted_data = self.full_encrypt(code_prefix + tb.int_to_bytes(len(data)))
+            packet = IP(dst=self.ip) / TCP(dport=self.ports[0], sport=self.personal_port) / Raw(encrypted_data)
+            send(packet)
         while len(data) > 0:
             # time.sleep(0.1)
             if len(data) > 16384:
