@@ -31,7 +31,7 @@ class Gui:
             self.local_dir = dir
 
         self.root = tk.Tk()
-        self.root.geometry('150x220')
+        self.root.geometry('150x170')
         self.root.configure(bg='white')
 
         # Settings button gif
@@ -45,12 +45,12 @@ class Gui:
                                  command=self.b_upload)
         self.button2 = tk.Button(self.root, text="download", width=10, height=2, bg="light grey", fg="black",
                                  command=self.b_download)
-        self.button3 = tk.Button(self.root, text="set local dir", width=10, height=2, bg="light grey", fg="black",
-                                 command=self.b_set_local_dir)
+        """self.button3 = tk.Button(self.root, text="set local dir", width=10, height=2, bg="light grey", fg="black",
+                                 command=self.b_set_local_dir)"""
 
-        self.button1.grid(column=1, row=1, pady=8, padx=5)
-        self.button2.grid(column=1, row=2, pady=8, padx=5)
-        self.button3.grid(column=1, row=3, pady=8, padx=5)
+        self.button1.grid(column=1, row=1, pady=8, padx=10)
+        self.button2.grid(column=1, row=2, pady=8, padx=10)
+        """self.button3.grid(column=1, row=3, pady=8, padx=5)"""
 
         if not self.local_dir:
             self.button2.configure(state="disabled")
@@ -88,8 +88,17 @@ class Gui:
                 time.sleep(0)
 
     def b_settings(self, event):
-        print(event)
-        self.info_popbox('works')
+        settings = tk.Toplevel(self.root, name='settings')
+        settings.title("Picture List")
+        settings.geometry("150x100")
+
+        tk.Label(settings, text="Settings", font="Helvetica 10 bold").grid(row=0, column=0, pady=5)
+
+        dir_button = tk.Button(settings, text="set local dir", width=10, height=2, bg="light grey", fg="black",
+                               command=self.b_set_local_dir)
+
+        dir_button.grid(row=1, column=0, padx=35)
+
 
     def b_upload(self):
         self.lock_root()
