@@ -22,7 +22,6 @@ layer2.change_keys("2")
 """
 
 finished = False
-previous_comp_address = []
 conversations = {}
 buffer = 0
 personal_port = 55559
@@ -37,17 +36,13 @@ def threaded_sniff_with_send():
     time.sleep(1)  # just to make sure the sniffer doesn't override with future scapy functions.
     print("sniffer initiated - listening")
     while not finished:
-        try:  # for some reason "if q.empty():" causes messages to be collected only when the next one is received
+        try:  # TODO: for some reason "if q.empty():" causes messages to be collected only when the next one is received
             pkt = q.get(timeout=1)
             if TCP not in pkt:
                 continue
             if pkt[TCP].ack == 1:
                 print("ack")
                 continue
-            # pkt.show()
-            if not previous_comp_address:
-                previous_comp_address.append(pkt[IP].src)
-                previous_comp_address.append(pkt[TCP].sport)
             # pkt.show()
             get_packet(pkt)
         except Empty:
@@ -56,7 +51,7 @@ def threaded_sniff_with_send():
 
 def sniff_loopback(q):
     # loop back interface - iface="Software Loopback Interface 1"
-    sniff(prn=lambda x: q.put(x), filter=f"dst port {personal_port}", iface="\\Device\\NPF_Loopback")
+    sniff(prn=lambda x: q.put(x), filter=f"dst port {personal_port}", iface=[tb.loopback_interface, tb.main_interface])
 
 
 def get_packet(packet):
@@ -91,9 +86,9 @@ def send_list(key, load):
     list_len = len(entry_list)
     index = int(load) * 10
     if list_len <= index:
-        reply(b'page does not exist', b'\xd3\xb6\xad')
+        reply(b'page does not exist', b'\xd3\xb6\xad', key)
         return
-    reply(str(entry_list[index:index+10]).encode('utf-8'), b'\x98\x16\xac')
+    reply(str(entry_list[index:index+10]).encode('utf-8'), b'\x98\x16\xac', key)
 
 
 def download(key, file_names):
@@ -102,8 +97,8 @@ def download(key, file_names):
         with open("server_photos/"+file, "rb") as f:
             data = f.read()
             print(len(data))
-            reply(pickle.dumps([len(data), file]), b'\xa7\x98\xa8')
-            reply(data, b'\xa7\x98\xa8')
+            reply(pickle.dumps([len(data), file]), b'\xa7\x98\xa8', key)
+            reply(data, b'\xa7\x98\xa8', key)
 
 
 def upload_request(key, load):
@@ -116,33 +111,37 @@ def upload_request(key, load):
     conversations[key][1] -= len(load)
     print("buffer:", conversations[key][1])
     if conversations[key][1] <= 0:
-        upload(conversations[key][0], conversations[key][2])
+        upload(conversations[key][0], conversations[key][2], key)
         del conversations[key]
 
 
-def upload(data, file_name):
+def upload(data, file_name, key):
     i = int(time.time() * 10000)
     with open(f"server_photos/{file_name}", "wb") as i:
         i.write(data)
         time.sleep(0.001)
-    reply(b'upload complete', b'\x9d\xb7\xe3')
+    reply(b'upload complete', b'\x9d\xb7\xe3', key)
 
 
-def reply(data, code_prefix):
+def reply(data, code_prefix, key):
     """
     Sends back replies on received messages to imitate a server
+    :param code_prefix: to let other side know meaning of aproach
+    :param key: consists of src#sport or received packet
     :param data: The data that is to be replied
     :return:
     """
+    dst, dport = key.split("#")
+    dport = int(dport)
     while len(data) > 0:
         if len(data) > 16384:
             sendable_data = code_prefix + data[:16384]
-            packet = IP(dst="127.0.0.1") / TCP(dport=previous_comp_address[1], sport=personal_port) / Raw(sendable_data)
+            packet = IP(dst=dst) / TCP(dport=dport, sport=personal_port) / Raw(sendable_data)
             send(packet)
             data = data[16384:]
         else:
             sendable_data = code_prefix + data
-            packet = IP(dst="127.0.0.1") / TCP(dport=previous_comp_address[1], sport=personal_port) / Raw(sendable_data)
+            packet = IP(dst=dst) / TCP(dport=dport, sport=personal_port) / Raw(sendable_data)
             # packet.show()
             send(packet)
             break

@@ -75,7 +75,7 @@ def threaded_sniff_with_send():
 
 # "Software Loopback Interface 1"
 def sniff_loopback(q):
-    sniff(prn=lambda x: q.put(x), iface="\\Device\\NPF_Loopback")
+    sniff(prn=lambda x: q.put(x), iface=[tb.loopback_interface, tb.main_interface])
 
 
 def decrypt_packet(data):
