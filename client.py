@@ -21,7 +21,7 @@ class Client:
     session_id = random.randbytes(20)
     ports = [55556, 55557, 55558, 55559]
     ip = "127.0.0.1"
-    personal_port = 55554
+    personal_port = 55555
     finished = False
 
     test_send_data = b"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+-="*300
@@ -58,12 +58,12 @@ class Client:
                 time.sleep(0.001)
 
     def sniff_loopback(self):
-        sniff(prn=lambda x: self.q.put(x), filter=f"dst port {self.personal_port}",
-              iface=[tb.loopback_interface, tb.main_interface])
+        sniff(prn=lambda x: self.q.put(x), filter=f"dst port {self.personal_port}", iface=tb.loopback_interface)
 
     def send(self, data, code_prefix):
         while len(data) > 0:
             # time.sleep(0.1)
+            print("sending")
             if len(data) > 16384:
                 encrypted_data = self.full_encrypt(code_prefix + data[:16384])
                 packet = IP(dst=self.ip) / TCP(dport=self.ports[0], sport=self.personal_port) / Raw(encrypted_data)

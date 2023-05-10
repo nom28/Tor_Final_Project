@@ -36,7 +36,8 @@ def threaded_sniff_with_send():
     time.sleep(1)  # just to make sure the sniffer doesn't override with future scapy functions.
     print("sniffer initiated - listening")
     while not finished:
-        try:  # TODO: for some reason "if q.empty():" causes messages to be collected only when the next one is received
+        # try:  # TODO: for some reason "if q.empty():" causes messages to be collected only when the next one is received
+        if not q.empty():
             pkt = q.get(timeout=1)
             if TCP not in pkt:
                 continue
@@ -45,13 +46,11 @@ def threaded_sniff_with_send():
                 continue
             # pkt.show()
             get_packet(pkt)
-        except Empty:
-            pass
 
 
 def sniff_loopback(q):
     # loop back interface - iface="Software Loopback Interface 1"
-    sniff(prn=lambda x: q.put(x), filter=f"dst port {personal_port}", iface=[tb.loopback_interface, tb.main_interface])
+    sniff(prn=lambda x: q.put(x), filter=f"dst port {personal_port}", iface=tb.loopback_interface)
 
 
 def get_packet(packet):
@@ -76,22 +75,17 @@ def get_packet(packet):
         download(key, file_names)
     if code == b"L":
         print("list request")
-        page_number = load[1:]
-        send_list(key, page_number)
+        send_list(key)
 
 
-def send_list(key, load):
+def send_list(key):
     entries = os.scandir("server_photos/")
     entry_list = list_from_iter(entries)
-    list_len = len(entry_list)
-    index = int(load) * 10
-    if list_len <= index:
-        reply(b'page does not exist', b'\xd3\xb6\xad', key)
-        return
-    reply(str(entry_list[index:index+10]).encode('utf-8'), b'\x98\x16\xac', key)
+    reply(str(entry_list).encode('utf-8'), b'\x98\x16\xac', key)
 
 
 def download(key, file_names):
+    print(file_names)
     file_names = eval(file_names)
     for file in file_names:
         with open("server_photos/"+file, "rb") as f:
