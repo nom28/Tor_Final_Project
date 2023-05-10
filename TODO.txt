@@ -1,0 +1,8 @@
+TODO:
+maybe add legal tcp connection
+
+different users on server
+change local directory on client
+multiple client bug fix - should be fixed, must check
+multiple servers
+directory server
