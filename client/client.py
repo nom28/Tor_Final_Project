@@ -2,7 +2,7 @@ import warnings
 from cryptography.utils import CryptographyDeprecationWarning
 from queue import *
 
-from tools.layer_new import Layer
+from tools.layer import Layer
 import tools.toolbox as tb
 
 warnings.filterwarnings("ignore", category=CryptographyDeprecationWarning)
@@ -27,10 +27,10 @@ class Client:
     test_send_data = b"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+-="*300
 
     def __init__(self):
-        self.layer0.change_keys("0")
-        self.layer1.change_keys("1")
-        self.layer2.change_keys("2")
-        self.layer3.change_keys("3")
+        self.layer0.change_keys("0", True)
+        self.layer1.change_keys("1", False)
+        self.layer2.change_keys("2", False)
+        self.layer3.change_keys("3", False)
 
     def sniffer(self, q):
         print("initiating sniffer")

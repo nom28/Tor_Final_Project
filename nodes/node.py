@@ -4,7 +4,7 @@ from threading import Thread
 import time
 from queue import Queue, Empty
 
-from tools.layer_new import Layer
+from tools.layer import Layer
 from tools.bidict import BiDict
 import tools.toolbox as tb
 
@@ -15,7 +15,7 @@ from scapy.layers.inet import *
 
 # CLIENT KEY - temporary
 layer0 = Layer()
-layer0.change_keys("0")
+layer0.change_keys("0", False)
 
 node_layer = Layer()
 
@@ -105,5 +105,5 @@ if __name__ == '__main__':
         start_port = int(sys.argv[2])
         key_num = sys.argv[3]
 
-        node_layer.change_keys(key_num)
+        node_layer.change_keys(key_num, True)
     threaded_sniff_with_send()

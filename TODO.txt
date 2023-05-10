@@ -1,8 +1,8 @@
 TODO:
-implement CustomTkinter
 maybe add legal tcp connection
 
-blue v on download
-multiple client bug fix
+different users on server
+change local directory on client
+multiple client bug fix - should be fixed, must check
 multiple servers
 directory server

@@ -28,7 +28,7 @@ class App(customtkinter.CTk):
         super().__init__()
 
         self.config = configparser.ConfigParser()
-        self.config.read('tools/client_settings.ini')
+        self.config.read('client_files/client_settings.ini')
         dir = self.config.get('Directories', 'LocalDir')
         if dir:
             self.local_dir = dir
@@ -158,7 +158,6 @@ class App(customtkinter.CTk):
                     d = self.incoming_msgs.get()
                     key = d[:3]
                     data = d[3:]
-                    print(key, data)
                     self.code_to_func[key](data)
                 except KeyError as e:
                     print("Error", e)

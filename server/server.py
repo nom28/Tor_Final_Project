@@ -6,7 +6,6 @@ from threading import Thread
 import time
 from queue import Queue, Empty
 
-from tools.layer import Layer
 import tools.toolbox as tb
 
 warnings.filterwarnings("ignore", category=CryptographyDeprecationWarning)
