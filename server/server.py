@@ -7,6 +7,7 @@ import time
 from queue import Queue, Empty
 
 import tools.toolbox as tb
+from database.database import Database
 
 warnings.filterwarnings("ignore", category=CryptographyDeprecationWarning)
 from scapy.layers.inet import *
@@ -21,9 +22,12 @@ layer2.change_keys("2")
 """
 
 finished = False
+sessions = {}
 conversations = {}
 buffer = 0
 personal_port = 55559
+
+db = Database()
 
 
 def threaded_sniff_with_send():
@@ -45,6 +49,8 @@ def threaded_sniff_with_send():
                 continue
             # pkt.show()
             get_packet(pkt)
+        else:
+            time.sleep(0)
 
 
 def sniff_loopback(q):
@@ -73,21 +79,54 @@ def get_packet(packet):
         file_names = load[1:]
         download(key, file_names)
     if code == b"L":
-        print("list request")
         send_list(key)
+    if code == b"I":
+        signin(key, load[1:])
+    if code == b"S":
+        signup(key, load[1:])
+
+
+def signin(key, user):
+    email, password, auth = pickle.loads(user)
+    if not db.check_user_exists(email, password):
+        reply(b"Email or password incorrect", b'\xd3\xb6\xad', key)
+        return
+    if not db.check_user_otp(email, auth):
+        reply(b"Auth incorrect", b'\xd3\xb6\xad', key)
+        return
+    reply(b"sign in successful", b'\xc6\xbd\x06', key)
+    sessions[key] = db.get_user_by_email(email)[0]
+    print(sessions)
+
+
+def signup(key, user):
+    email, password = pickle.loads(user)
+    result = db.add_user(email, password)
+    if result:
+        reply(result.encode('utf-8'), b'\x9d\xf6\x9e', key)
+        sessions[key] = db.get_user_by_email(email)[0]
+        print(sessions)
+        os.mkdir(f"server_files/f{sessions[key]}")
+    else:
+        reply(b"User already exists", b'\xd3\xb6\xad', key)
 
 
 def send_list(key):
-    entries = os.scandir("server_photos/")
+    if key not in sessions:
+        return
+    user_folder = sessions[key]
+    entries = os.scandir(f"server_files/f{user_folder}")
     entry_list = list_from_iter(entries)
     reply(str(entry_list).encode('utf-8'), b'\x98\x16\xac', key)
 
 
 def download(key, file_names):
-    print(file_names)
+    if key not in sessions:
+        return
+    user_folder = sessions[key]
     file_names = eval(file_names)
     for file in file_names:
-        with open("server_photos/"+file, "rb") as f:
+        with open(f"server_files/f{user_folder}/{file}", "rb") as f:
             data = f.read()
             print(len(data))
             reply(pickle.dumps([len(data), file]), b'\xa7\x98\xa8', key)
@@ -109,8 +148,11 @@ def upload_request(key, load):
 
 
 def upload(data, file_name, key):
+    if key not in sessions:
+        return
     i = int(time.time() * 10000)
-    with open(f"server_photos/{file_name}", "wb") as i:
+    user_folder = sessions[key]
+    with open(f"server_files/f{user_folder}/{file_name}", "wb") as i:
         i.write(data)
         time.sleep(0.001)
     reply(b'upload complete', b'\x9d\xb7\xe3', key)

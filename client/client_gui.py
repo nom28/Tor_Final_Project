@@ -16,6 +16,7 @@ class App(customtkinter.CTk):
     c = Client()
     incoming_msgs = queue.Queue()
     local_dir = ""
+    loggedin = False
 
     buffer = 0
     designated_file_name = ""
@@ -33,7 +34,7 @@ class App(customtkinter.CTk):
         if dir:
             self.local_dir = dir
 
-        self.title("image_example.py")
+        self.title("Tor Box")
         self.geometry("700x450")
 
         # set grid layout 1x2
@@ -57,7 +58,7 @@ class App(customtkinter.CTk):
         self.navigation_frame.grid(row=0, column=0, sticky="nsew")
         self.navigation_frame.grid_rowconfigure(4, weight=1)
 
-        self.navigation_frame_label = customtkinter.CTkLabel(self.navigation_frame, text="  Image Example", image=self.logo_image,
+        self.navigation_frame_label = customtkinter.CTkLabel(self.navigation_frame, text="  Tor Box", image=self.logo_image,
                                                              compound="left", font=customtkinter.CTkFont(size=15, weight="bold"))
         self.navigation_frame_label.grid(row=0, column=0, padx=20, pady=20)
 
@@ -84,27 +85,70 @@ class App(customtkinter.CTk):
                                                                 command=self.change_appearance_mode_event)
         self.appearance_mode_menu.grid(row=6, column=0, padx=20, pady=20, sticky="s")
 
-        # create home frame
-        self.home_frame = customtkinter.CTkFrame(self, corner_radius=0, fg_color="transparent")
-        self.home_frame.grid_columnconfigure(0, weight=1)
+        # create home frame signup
+        self.home_frame_signup = customtkinter.CTkFrame(self, corner_radius=0, fg_color="transparent")
+        self.home_frame_signup.grid_columnconfigure(0, weight=1)
 
-        self.login_label = customtkinter.CTkLabel(self.home_frame, text="Login", font=("Arial", 18))
-        self.login_label.grid(row=0, column=0, padx=20, pady=20)
+        self.signup_label = customtkinter.CTkLabel(self.home_frame_signup, text="Sign Up", font=("Arial", 18))
+        self.signup_label.grid(row=0, column=0, padx=20, pady=20)
 
-        self.login_frame = customtkinter.CTkFrame(master=self.home_frame)
-        self.login_frame.grid(row=1, column=0, padx=20, pady=10)
+        self.signup_frame = customtkinter.CTkFrame(master=self.home_frame_signup)
+        self.signup_frame.grid(row=1, column=0, padx=20, pady=10)
 
-        self.user_entry = customtkinter.CTkEntry(master=self.login_frame, placeholder_text="Username")
-        self.user_entry.grid(row=0, column=0, padx=20, pady=10)
+        self.email_entry_up = customtkinter.CTkEntry(master=self.signup_frame, placeholder_text="Email")
+        self.email_entry_up.grid(row=0, column=0, padx=20, pady=10)
 
-        self.user_pass = customtkinter.CTkEntry(master=self.login_frame, placeholder_text="Password", show="*")
-        self.user_pass.grid(row=1, column=0, padx=20, pady=10)
+        self.user_pass_up = customtkinter.CTkEntry(master=self.signup_frame, placeholder_text="Password", show="*")
+        self.user_pass_up.grid(row=1, column=0, padx=20, pady=10)
 
-        self.login_button = customtkinter.CTkButton(master=self.login_frame, text='Login', command=self.login)
-        self.login_button.grid(row=2, column=0, padx=20, pady=10)
+        self.signup_button = customtkinter.CTkButton(master=self.signup_frame, text='Sign up', command=self.signup)
+        self.signup_button.grid(row=3, column=0, padx=20, pady=10)
 
-        self.login_checkbox = customtkinter.CTkCheckBox(master=self.login_frame, text='Remember Me')
-        self.login_checkbox.grid(row=3, column=0, padx=20, pady=10)
+        self.switch_in_button = customtkinter.CTkButton(master=self.home_frame_signup, text='Sign In',
+                                                        command=lambda: self.select_frame_by_name("home signin"))
+        self.switch_in_button.grid(row=2, column=0, padx=20, pady=10)
+
+        # create home frame signin
+        self.home_frame_signin = customtkinter.CTkFrame(self, corner_radius=0, fg_color="transparent")
+        self.home_frame_signin.grid_columnconfigure(0, weight=1)
+
+        self.signin_label = customtkinter.CTkLabel(self.home_frame_signin, text="Sign In", font=("Arial", 18))
+        self.signin_label.grid(row=0, column=0, padx=20, pady=20)
+
+        self.signin_frame = customtkinter.CTkFrame(master=self.home_frame_signin)
+        self.signin_frame.grid(row=1, column=0, padx=20, pady=10)
+
+        self.email_entry_in = customtkinter.CTkEntry(master=self.signin_frame, placeholder_text="Email")
+        self.email_entry_in.grid(row=0, column=0, padx=20, pady=10)
+
+        self.user_pass_in = customtkinter.CTkEntry(master=self.signin_frame, placeholder_text="Password", show="*")
+        self.user_pass_in.grid(row=1, column=0, padx=20, pady=10)
+
+        self.auth_entry = customtkinter.CTkEntry(master=self.signin_frame, placeholder_text="2FA")
+        self.auth_entry.grid(row=2, column=0, padx=20, pady=10)
+
+        self.signin_button = customtkinter.CTkButton(master=self.signin_frame, text='Sign In', command=self.signin)
+        self.signin_button.grid(row=3, column=0, padx=20, pady=10)
+
+        self.switch_up_button = customtkinter.CTkButton(master=self.home_frame_signin, text='Sign Up',
+                                                        command=lambda: self.select_frame_by_name("home signup"))
+        self.switch_up_button.grid(row=2, column=0, padx=20, pady=10)
+
+        # create home info frame
+        self.home_info = customtkinter.CTkFrame(self, corner_radius=0, fg_color="transparent")
+        self.home_info.grid_columnconfigure(0, weight=1)
+
+        self.info_label = customtkinter.CTkLabel(self.home_info, text="Home - Info", font=("Arial", 18))
+        self.info_label.grid(row=0, column=0, padx=20, pady=20)
+
+        self.auth_label = customtkinter.CTkLabel(self.home_info, text="", font=("Arial", 16), text_color="red")
+        self.auth_label.grid(row=1, column=0, padx=20, pady=20, sticky="w")
+
+        with open("client_files/info.txt", "r") as i:
+            info = i.read()
+        self.info_block_label = customtkinter.CTkLabel(self.home_info, text=info)
+        self.info_block_label.grid(row=2, column=0, padx=20, pady=20, sticky="w")
+
 
         # create second frame
         self.second_frame = customtkinter.CTkFrame(self, corner_radius=0, fg_color="transparent")
@@ -133,14 +177,17 @@ class App(customtkinter.CTk):
         self.download_button.grid(row=2, column=0, padx=20, pady=10)
 
         # select default frame
-        self.select_frame_by_name("home")
+        self.select_frame_by_name("home signin")
+        self.change_appearance_mode_event("Dark")
 
         # communications
         self.code_to_func = {
             b'\x9d\xb7\xe3': self.upload_complete,
             b'\x98\x16\xac': self.file_list,
-            # b'\xd3\xb6\xad': self.error_popbox,
-            b'\xa7\x98\xa8': self.download_save
+            b'\xd3\xb6\xad': self.error_update,
+            b'\xa7\x98\xa8': self.download_save,
+            b'\x9d\xf6\x9e': self.signup_successful,
+            b'\xc6\xbd\x06': self.signin_successful
         }
 
         analyzer = Thread(target=self.analyzer)
@@ -164,17 +211,43 @@ class App(customtkinter.CTk):
             else:
                 time.sleep(0)
 
+    def error_update(self, msg):
+        timestamp = time.strftime("%H:%M:%S", time.localtime())
+        self.update_label.configure(text=f"[{timestamp}] {msg}", text_color="red")
+
+    def signup_successful(self, msg):
+        self.loggedin = True
+        self.update_label.configure(text="")
+        self.auth_label.configure(text=f"YOUR 2FA KEY: \n {msg} \n KEEP THIS AT ALL COSTS")
+        self.select_frame_by_name("home info")
+        print(msg)
+
+    def signin_successful(self, msg):
+        self.loggedin = True
+        self.update_label.configure(text="")
+        self.auth_label.configure(text="")
+        self.select_frame_by_name("home info")
+        print(msg)
+
     def select_frame_by_name(self, name):
         # set button color for selected button
-        self.home_button.configure(fg_color=("gray75", "gray25") if name == "home" else "transparent")
+        self.home_button.configure(fg_color=("gray75", "gray25") if name.split(" ")[0] == "home" else "transparent")
         self.frame_2_button.configure(fg_color=("gray75", "gray25") if name == "upload" else "transparent")
         self.frame_3_button.configure(fg_color=("gray75", "gray25") if name == "download" else "transparent")
 
         # show selected frame
-        if name == "home":
-            self.home_frame.grid(row=0, column=1, sticky="nsew")
+        if name == "home info":
+            self.home_info.grid(row=0, column=1, sticky="nsew")
         else:
-            self.home_frame.grid_forget()
+            self.home_info.grid_forget()
+        if name == "home signin":
+            self.home_frame_signin.grid(row=0, column=1, sticky="nsew")
+        else:
+            self.home_frame_signin.grid_forget()
+        if name == "home signup":
+            self.home_frame_signup.grid(row=0, column=1, sticky="nsew")
+        else:
+            self.home_frame_signup.grid_forget()
         if name == "upload":
             self.second_frame.grid(row=0, column=1, sticky="nsew")
         else:
@@ -185,13 +258,17 @@ class App(customtkinter.CTk):
             self.third_frame.grid_forget()
 
     def home_button_event(self):
-        self.select_frame_by_name("home")
+        if self.loggedin:
+            self.select_frame_by_name("home info")
+        else:
+            self.select_frame_by_name("home signin")
 
     def frame_2_button_event(self):
         self.select_frame_by_name("upload")
         # this includes an if statement to remove any directories
         files = [f for f in os.listdir(self.local_dir) if os.path.isfile(os.path.join(self.local_dir, f))]
         variables = []
+        print("in here")
         for i, file in enumerate(files):
             variables.append(customtkinter.StringVar(value="off"))
             checkbox = customtkinter.CTkCheckBox(self.scrollable_frame_1, text=file, variable=variables[i],
@@ -220,7 +297,7 @@ class App(customtkinter.CTk):
             return
 
         timestamp = time.strftime("%H:%M:%S", time.localtime())
-        self.update_label.configure(text=f"[{timestamp}] Upload finished")
+        self.update_label.configure(text=f"[{timestamp}] Upload finished", text_color=("gray10", "gray90"))
 
 
 
@@ -231,11 +308,18 @@ class App(customtkinter.CTk):
     def change_appearance_mode_event(self, new_appearance_mode):
         customtkinter.set_appearance_mode(new_appearance_mode)
 
-    def login(self):
-        username = self.user_entry.get()
-        password = self.user_pass.get()
-        remember = self.login_checkbox.get()
-        print(username, password, remember)
+    def signup(self):
+        email = self.email_entry_up.get()
+        password = self.user_pass_up.get()
+        print(email, password)
+        self.c.send(pickle.dumps([email, password]), b"S")
+
+    def signin(self):
+        email = self.email_entry_in.get()
+        password = self.user_pass_in.get()
+        auth2fa = self.auth_entry.get()
+        print(email, password, auth2fa)
+        self.c.send(pickle.dumps([email, password, auth2fa]), b"I")
 
     def file_list(self, data):
         files = eval(data)
@@ -287,7 +371,7 @@ class App(customtkinter.CTk):
                 return
 
             timestamp = time.strftime("%H:%M:%S", time.localtime())
-            self.update_label.configure(text=f"[{timestamp}] Download finished")
+            self.update_label.configure(text=f"[{timestamp}] Download finished", text_color=("gray10", "gray90"))
 
 
 if __name__ == "__main__":
