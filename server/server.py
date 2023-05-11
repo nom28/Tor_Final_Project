@@ -125,6 +125,10 @@ def download(key, file_names):
         return
     user_folder = sessions[key]
     file_names = eval(file_names)
+
+    # blue v for accepting
+    reply(b"Request accepted", b'\xf2\xee\x07', key)
+
     for file in file_names:
         with open(f"server_files/f{user_folder}/{file}", "rb") as f:
             data = f.read()
@@ -135,6 +139,11 @@ def download(key, file_names):
 
 def upload_request(key, load):
     global conversations
+
+    if key not in sessions:
+        reply(b"Not signed in", b'\xd3\xb6\xad', key)
+        return
+
     if key not in conversations:
         raise "this is wierd"
 
@@ -148,8 +157,6 @@ def upload_request(key, load):
 
 
 def upload(data, file_name, key):
-    if key not in sessions:
-        return
     i = int(time.time() * 10000)
     user_folder = sessions[key]
     with open(f"server_files/f{user_folder}/{file_name}", "wb") as i:

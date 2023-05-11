@@ -187,7 +187,8 @@ class App(customtkinter.CTk):
             b'\xd3\xb6\xad': self.error_update,
             b'\xa7\x98\xa8': self.download_save,
             b'\x9d\xf6\x9e': self.signup_successful,
-            b'\xc6\xbd\x06': self.signin_successful
+            b'\xc6\xbd\x06': self.signin_successful,
+            b'\xf2\xee\x07': self._update_label
         }
 
         analyzer = Thread(target=self.analyzer)
@@ -211,14 +212,18 @@ class App(customtkinter.CTk):
             else:
                 time.sleep(0)
 
+    def _update_label(self, msg):
+        timestamp = time.strftime("%H:%M:%S", time.localtime())
+        self.update_label.configure(text=f"[{timestamp}] {str(msg)}", text_color=("gray10", "gray90"))
+
     def error_update(self, msg):
         timestamp = time.strftime("%H:%M:%S", time.localtime())
-        self.update_label.configure(text=f"[{timestamp}] {msg}", text_color="red")
+        self.update_label.configure(text=f"[{timestamp}] {str(msg)}", text_color="red")
 
     def signup_successful(self, msg):
         self.loggedin = True
         self.update_label.configure(text="")
-        self.auth_label.configure(text=f"YOUR 2FA KEY: \n {msg} \n KEEP THIS AT ALL COSTS")
+        self.auth_label.configure(text=f"YOUR 2FA KEY: \n {str(msg)} \n KEEP THIS AT ALL COSTS")
         self.select_frame_by_name("home info")
         print(msg)
 
@@ -268,7 +273,6 @@ class App(customtkinter.CTk):
         # this includes an if statement to remove any directories
         files = [f for f in os.listdir(self.local_dir) if os.path.isfile(os.path.join(self.local_dir, f))]
         variables = []
-        print("in here")
         for i, file in enumerate(files):
             variables.append(customtkinter.StringVar(value="off"))
             checkbox = customtkinter.CTkCheckBox(self.scrollable_frame_1, text=file, variable=variables[i],
