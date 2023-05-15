@@ -20,10 +20,6 @@ layer0.change_keys("0", False)
 node_layer = Layer()
 
 finished = False
-previous_comp_address = []
-
-sk_to_dst = {}
-src_to_sk = {}
 
 
 def threaded_sniff_with_send():
@@ -43,10 +39,10 @@ def threaded_sniff_with_send():
             # Checks if is a data TCP packet
             if TCP not in pkt:
                 continue
-            if pkt[TCP].ack == 1:
-                print("ack")
+            if pkt[TCP].flags.R:
                 continue
-
+            if pkt[TCP].flags.A:
+                continue
             dport = pkt[TCP].dport
             sport = pkt[TCP].sport
             src = pkt[IP].src
