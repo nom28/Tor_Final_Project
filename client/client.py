@@ -23,6 +23,8 @@ class Client:
     ip = "127.0.0.1"
     personal_port = 55555
     finished = False
+    fragmented_packets = {}
+    _id = 1
 
     test_send_data = b"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+-="*300
 
@@ -32,7 +34,7 @@ class Client:
         self.layer2.change_keys("2", False)
         self.layer3.change_keys("3", False)
 
-    def sniffer(self, q):
+    def sniffer(self, d):
         print("initiating sniffer")
         sniffer = Thread(target=self.sniff_loopback)
         sniffer.daemon = True
@@ -44,21 +46,47 @@ class Client:
             if not self.q.empty():
                 try:
                     pkt = self.q.get()
-                    if TCP not in pkt:
-                        continue
-                    if pkt[TCP].ack == 1:
-                        continue
-                    # pkt.show()
-                    data = self.decrypt_packet(pkt.load)
-                    q.put(data[1])  # [0] is session key
+                    self.defragment_packets(pkt, d)
                 except AttributeError:
                     raise
             else:
                 # do not really understand why this is needed, but does not print all packets if not.
-                time.sleep(0.001)
+                time.sleep(0)
 
     def sniff_loopback(self):
-        sniff(prn=lambda x: self.q.put(x), filter=f"dst port {self.personal_port}", iface=tb.loopback_interface)
+        sniff(prn=lambda x: self.q.put(x), filter=f"tcp", iface=[tb.loopback_interface, tb.main_interface])
+
+    def defragment_packets(self, packet, d):
+        if packet.haslayer(IP):
+            ip = packet[IP]
+            if ip.flags == 1:  # Fragmentation flag is set
+                if ip.id not in self.fragmented_packets:
+                    self.fragmented_packets[ip.id] = [packet]
+                else:
+                    self.fragmented_packets[ip.id].append(packet)
+            elif ip.flags == 0 and ip.id in self.fragmented_packets:  # Last fragment
+                self.fragmented_packets[ip.id].append(packet)
+                fragments = self.fragmented_packets.pop(ip.id)
+                fragments = sorted(fragments, key=lambda x: x[IP].frag)
+                full_packet = fragments[0]
+                payload = b''
+                for fragment in fragments:  # Sort fragments by offset
+                    payload += fragment.load
+                full_packet.load = payload
+                self.process_packet(full_packet, d)
+            else:
+                self.process_packet(packet, d)
+
+    def process_packet(self, pkt, d):
+        if TCP not in pkt:
+            return
+        if pkt[TCP].ack == 1:
+            return
+        if pkt[TCP].dport != self.personal_port:
+            return
+        # pkt.show()
+        data = self.decrypt_packet(pkt.load)
+        d.put(data[1])  # [0] is session key
 
     def send(self, data, code_prefix):
         while len(data) > 0:
@@ -66,13 +94,15 @@ class Client:
             print("sending")
             if len(data) > 16384:
                 encrypted_data = self.full_encrypt(code_prefix + data[:16384])
-                packet = IP(dst=self.ip) / TCP(dport=self.ports[0], sport=self.personal_port) / Raw(encrypted_data)
-                send(packet)
+                packet = IP(dst=self.ip, id=self._id) / TCP(dport=self.ports[0], sport=self.personal_port) / Raw(encrypted_data)
+                self._id += 1
+                send(packet.fragment())
                 data = data[16384:]
             else:
                 encrypted_data = self.full_encrypt(code_prefix + data)
-                packet = IP(dst=self.ip) / TCP(dport=self.ports[0], sport=self.personal_port) / Raw(encrypted_data)
-                send(packet)
+                packet = IP(dst=self.ip, id=self._id) / TCP(dport=self.ports[0], sport=self.personal_port) / Raw(encrypted_data)
+                self._id += 1
+                send(packet.fragment())
                 break
 
     def full_encrypt(self, data):

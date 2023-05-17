@@ -10,8 +10,8 @@ import tools.toolbox as tb
 from database.database import Database
 
 warnings.filterwarnings("ignore", category=CryptographyDeprecationWarning)
-from scapy.layers.inet import *
 from scapy.all import *
+from scapy.layers.inet import *
 
 data = b""
 """
@@ -28,6 +28,7 @@ buffer = 0
 personal_port = 55559
 
 db = Database()
+fragmented_packets = {}
 
 
 def threaded_sniff_with_send():
@@ -42,26 +43,50 @@ def threaded_sniff_with_send():
         # try:  # TODO: for some reason "if q.empty():" causes messages to be collected only when the next one is received
         if not q.empty():
             pkt = q.get(timeout=1)
-            if TCP not in pkt:
-                continue
-            if pkt[TCP].ack == 1:
-                print("ack")
-                continue
-            # pkt.show()
-            get_packet(pkt)
+            defragment_packets(pkt)
         else:
             time.sleep(0)
 
 
 def sniff_loopback(q):
     # loop back interface - iface="Software Loopback Interface 1"
-    sniff(prn=lambda x: q.put(x), filter=f"dst port {personal_port}", iface=tb.loopback_interface)
+    sniff(prn=lambda x: q.put(x), filter=f"tcp and dst port {personal_port}", iface=[tb.loopback_interface, tb.main_interface])
 
 
-def get_packet(packet):
+def defragment_packets(packet):
+    global fragmented_packets
+    if packet.haslayer(IP):
+        ip = packet[IP]
+        if ip.flags == 1:  # Fragmentation flag is set
+            if ip.id not in fragmented_packets:
+                fragmented_packets[ip.id] = [packet]
+            else:
+                fragmented_packets[ip.id].append(packet)
+        elif ip.flags == 0 and ip.id in fragmented_packets:  # Last fragment
+            fragmented_packets[ip.id].append(packet)
+
+            fragments = fragmented_packets.pop(ip.id)
+            fragments = sorted(fragments, key=lambda x: x[IP].frag)
+            full_packet = fragments[0]
+            payload = b''
+            for fragment in fragments:  # Sort fragments by offset
+                payload += fragment.load
+            full_packet.load = payload
+            process_packet(full_packet)
+        else:
+            process_packet(packet)
+
+
+def process_packet(packet):
     # global data
     global conversations
     global buffer  # global buffer means only one user can upload and download at the same time
+
+    if TCP not in packet:
+        return
+    if packet[TCP].ack == 1:
+        print("ack")
+        return
 
     key = packet[IP].src + "#" + str(packet[TCP].sport)
     load = packet.load
@@ -145,7 +170,7 @@ def upload_request(key, load):
         return
 
     if key not in conversations:
-        raise "this is wierd"
+        raise
 
     conversations[key][0] += load
 
@@ -179,13 +204,13 @@ def reply(data, code_prefix, key):
         if len(data) > 16384:
             sendable_data = code_prefix + data[:16384]
             packet = IP(dst=dst) / TCP(dport=dport, sport=personal_port) / Raw(sendable_data)
-            send(packet)
+            send(packet.fragment())
             data = data[16384:]
         else:
             sendable_data = code_prefix + data
             packet = IP(dst=dst) / TCP(dport=dport, sport=personal_port) / Raw(sendable_data)
             # packet.show()
-            send(packet)
+            send(packet.fragment())
             break
 
 
