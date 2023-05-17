@@ -19,9 +19,8 @@ class Client:
     q = Queue()
 
     session_id = random.randbytes(20)
-    ports = [55556, 55557, 55558, 55559]
-    ip = "127.0.0.1"
-    personal_port = 55555
+    ip = tb.adresses[0][0]
+    personal_port = tb.adresses[0][1]
     finished = False
     fragmented_packets = {}
     _id = 1
@@ -94,21 +93,21 @@ class Client:
             print("sending")
             if len(data) > 16384:
                 encrypted_data = self.full_encrypt(code_prefix + data[:16384])
-                packet = IP(dst=self.ip, id=self._id) / TCP(dport=self.ports[0], sport=self.personal_port) / Raw(encrypted_data)
+                packet = IP(dst=tb.adresses[1][0]) / TCP(dport=tb.adresses[1][1], sport=self.personal_port) / Raw(encrypted_data)
                 self._id += 1
                 send(packet.fragment())
                 data = data[16384:]
             else:
                 encrypted_data = self.full_encrypt(code_prefix + data)
-                packet = IP(dst=self.ip, id=self._id) / TCP(dport=self.ports[0], sport=self.personal_port) / Raw(encrypted_data)
+                packet = IP(dst=tb.adresses[1][0]) / TCP(dport=tb.adresses[1][1], sport=self.personal_port) / Raw(encrypted_data)
                 self._id += 1
                 send(packet.fragment())
                 break
 
     def full_encrypt(self, data):
-        encrypted_data = self.layer3.encrypt(data, self.session_id, self.ip, str(self.ports[3]))
-        encrypted_data = self.layer2.encrypt(encrypted_data, self.session_id, self.ip, str(self.ports[2]))
-        encrypted_data = self.layer1.encrypt(encrypted_data, self.session_id, self.ip, str(self.ports[1]))
+        encrypted_data = self.layer3.encrypt(data, self.session_id, tb.adresses[4][0], str(tb.adresses[4][1]))
+        encrypted_data = self.layer2.encrypt(encrypted_data, self.session_id, tb.adresses[3][0], str(tb.adresses[3][1]))
+        encrypted_data = self.layer1.encrypt(encrypted_data, self.session_id, tb.adresses[2][0], str(tb.adresses[2][1]))
         return encrypted_data
 
     def decrypt_packet(self, data):

@@ -86,12 +86,9 @@ def process_packet(pkt):
     if dport == personal_port:
         if not prev_addr_to_ports.has_this_key(src_address):  # If this is the first message then add it to the dict
             available_port = tb.find_next_available_port(start_port)
-            print(available_port)
             prev_addr_to_ports.add(src_address, available_port)
 
         pkt = decrypt_packet(pkt.load)
-        if key_num == "3":
-            print("pkt3", pkt)
         ip, port, session_id, data = pkt  # session key becomes redundant
         print(f"{key_num}-->{ip}:{port}")
         send_data(data, ip, port, prev_addr_to_ports.get_value(src_address))
@@ -124,7 +121,6 @@ def encrypt_packet(data):
 
 def send_data(data, ip, port, cport):
     packet = IP(dst=ip) / TCP(dport=port, sport=cport) / Raw(data)
-    print(packet.show())
     send(packet.fragment())
 
 
