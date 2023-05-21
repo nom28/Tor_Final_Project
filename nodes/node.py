@@ -22,6 +22,7 @@ node_layer = Layer()
 finished = False
 prev_addr_to_ports = BiDict()
 fragmented_packets = {}
+_id = 1
 
 
 def threaded_sniff_with_send():
@@ -44,32 +45,38 @@ def threaded_sniff_with_send():
 
 def defragment_packets(packet):
     global fragmented_packets
-    if packet.haslayer(IP):
-        ip = packet[IP]
-        if ip.flags == 1:  # Fragmentation flag is set
-            if ip.id not in fragmented_packets:
-                fragmented_packets[ip.id] = [packet]
-            else:
-                fragmented_packets[ip.id].append(packet)
-        elif ip.flags == 0 and ip.id in fragmented_packets:  # Last fragment
-            fragmented_packets[ip.id].append(packet)
-
-            fragments = fragmented_packets.pop(ip.id)
-            fragments = sorted(fragments, key=lambda x: x[IP].frag)
-            full_packet = fragments[0]
-            payload = b''
-            for fragment in fragments:  # Sort fragments by offset
-                payload += fragment.load
-            full_packet.load = payload
-
-            full_packet[IP].flags = 0
-
-            process_packet(full_packet)
+    if not packet.haslayer(IP):
+        try:
+            send(packet, verbose=False)
+        except Exception as e:
+            print(f"Error sending packet: {e}")
+        return
+    ip = packet[IP]
+    if ip.flags == 1:  # Fragmentation flag is set
+        if tb.stringify([ip.id, ip.src]) not in fragmented_packets:
+            fragmented_packets[tb.stringify([ip.id, ip.src])] = [packet]
         else:
-            process_packet(packet)
+            fragmented_packets[tb.stringify([ip.id, ip.src])].append(packet)
+    elif ip.flags == 0 and tb.stringify([ip.id, ip.src]) in fragmented_packets:  # Last fragment
+        fragmented_packets[tb.stringify([ip.id, ip.src])].append(packet)
+
+        fragments = fragmented_packets.pop(tb.stringify([ip.id, ip.src]))
+        fragments = sorted(fragments, key=lambda x: x[IP].frag)
+        full_packet = fragments[0]
+        payload = b''
+        for fragment in fragments:  # Sort fragments by offset
+            payload += fragment.load
+        full_packet.load = payload
+
+        full_packet[IP].flags = 0
+
+        process_packet(full_packet)
+    else:
+        process_packet(packet)
 
 
 def process_packet(pkt):
+    global start_port
     global prev_addr_to_ports
     # Checks if is a data TCP packet
     if TCP not in pkt:
@@ -81,11 +88,12 @@ def process_packet(pkt):
     dport = pkt[TCP].dport
     sport = pkt[TCP].sport
     src = pkt[IP].src
-    src_address = stringify([src, sport])
+    src_address = tb.stringify([src, sport])
 
     if dport == personal_port:
         if not prev_addr_to_ports.has_this_key(src_address):  # If this is the first message then add it to the dict
             available_port = tb.find_next_available_port(start_port)
+            start_port += 1
             prev_addr_to_ports.add(src_address, available_port)
 
         pkt = decrypt_packet(pkt.load)
@@ -120,14 +128,10 @@ def encrypt_packet(data):
 
 
 def send_data(data, ip, port, cport):
+    global _id
     packet = IP(dst=ip) / TCP(dport=port, sport=cport) / Raw(data)
-    send(packet.fragment())
-
-
-def stringify(lst):
-    lst = map(str, lst)
-    string = "['"+"', '".join(lst)+"']"
-    return string
+    _id += 1
+    send(fragment(packet, fragsize=1400))
 
 
 if __name__ == '__main__':

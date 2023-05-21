@@ -59,13 +59,13 @@ class Client:
         if packet.haslayer(IP):
             ip = packet[IP]
             if ip.flags == 1:  # Fragmentation flag is set
-                if ip.id not in self.fragmented_packets:
-                    self.fragmented_packets[ip.id] = [packet]
+                if tb.stringify([ip.id, ip.src]) not in self.fragmented_packets:
+                    self.fragmented_packets[tb.stringify([ip.id, ip.src])] = [packet]
                 else:
-                    self.fragmented_packets[ip.id].append(packet)
-            elif ip.flags == 0 and ip.id in self.fragmented_packets:  # Last fragment
-                self.fragmented_packets[ip.id].append(packet)
-                fragments = self.fragmented_packets.pop(ip.id)
+                    self.fragmented_packets[tb.stringify([ip.id, ip.src])].append(packet)
+            elif ip.flags == 0 and tb.stringify([ip.id, ip.src]) in self.fragmented_packets:  # Last fragment
+                self.fragmented_packets[tb.stringify([ip.id, ip.src])].append(packet)
+                fragments = self.fragmented_packets.pop(tb.stringify([ip.id, ip.src]))
                 fragments = sorted(fragments, key=lambda x: x[IP].frag)
                 full_packet = fragments[0]
                 payload = b''
@@ -95,13 +95,13 @@ class Client:
                 encrypted_data = self.full_encrypt(code_prefix + data[:16384])
                 packet = IP(dst=tb.addresses[1][0]) / TCP(dport=tb.addresses[1][1], sport=self.personal_port) / Raw(encrypted_data)
                 self._id += 1
-                send(packet.fragment())
+                send(fragment(packet, fragsize=1400))
                 data = data[16384:]
             else:
                 encrypted_data = self.full_encrypt(code_prefix + data)
                 packet = IP(dst=tb.addresses[1][0]) / TCP(dport=tb.addresses[1][1], sport=self.personal_port) / Raw(encrypted_data)
                 self._id += 1
-                send(packet.fragment())
+                send(fragment(packet, fragsize=1400))
                 break
 
     def full_encrypt(self, data):

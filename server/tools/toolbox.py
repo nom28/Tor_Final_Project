@@ -13,6 +13,12 @@ def int_from_bytes(xbytes: bytes) -> int:
     return int.from_bytes(xbytes, 'big')
 
 
+def stringify(lst):
+    lst = map(str, lst)
+    string = "['"+"', '".join(lst)+"']"
+    return string
+
+
 def find_next_available_port(start_port):
     for port in range(start_port, 65535):
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)

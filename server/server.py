@@ -26,6 +26,7 @@ sessions = {}
 conversations = {}
 buffer = 0
 personal_port = 55559
+_id = 1
 
 db = Database()
 fragmented_packets = {}
@@ -58,14 +59,14 @@ def defragment_packets(packet):
     if packet.haslayer(IP):
         ip = packet[IP]
         if ip.flags == 1:  # Fragmentation flag is set
-            if ip.id not in fragmented_packets:
-                fragmented_packets[ip.id] = [packet]
+            if tb.stringify([ip.id, ip.src]) not in fragmented_packets:
+                fragmented_packets[tb.stringify([ip.id, ip.src])] = [packet]
             else:
-                fragmented_packets[ip.id].append(packet)
-        elif ip.flags == 0 and ip.id in fragmented_packets:  # Last fragment
-            fragmented_packets[ip.id].append(packet)
+                fragmented_packets[tb.stringify([ip.id, ip.src])].append(packet)
+        elif ip.flags == 0 and tb.stringify([ip.id, ip.src]) in fragmented_packets:  # Last fragment
+            fragmented_packets[tb.stringify([ip.id, ip.src])].append(packet)
 
-            fragments = fragmented_packets.pop(ip.id)
+            fragments = fragmented_packets.pop(tb.stringify([ip.id, ip.src]))
             fragments = sorted(fragments, key=lambda x: x[IP].frag)
             full_packet = fragments[0]
             payload = b''
@@ -142,6 +143,8 @@ def send_list(key):
     user_folder = sessions[key]
     entries = os.scandir(f"server_files/f{user_folder}")
     entry_list = list_from_iter(entries)
+    if "Thumbs.db" in entry_list:
+        entry_list.remove("Thumbs.db")
     reply(str(entry_list).encode('utf-8'), b'\x98\x16\xac', key)
 
 
@@ -198,19 +201,21 @@ def reply(data, code_prefix, key):
     :param data: The data that is to be replied
     :return:
     """
+    global _id
     dst, dport = key.split("#")
     dport = int(dport)
     while len(data) > 0:
         if len(data) > 16384:
             sendable_data = code_prefix + data[:16384]
             packet = IP(dst=dst) / TCP(dport=dport, sport=personal_port) / Raw(sendable_data)
-            send(packet.fragment())
+            _id += 1
+            send(fragment(packet, fragsize=1400))
             data = data[16384:]
         else:
             sendable_data = code_prefix + data
             packet = IP(dst=dst) / TCP(dport=dport, sport=personal_port) / Raw(sendable_data)
-            # packet.show()
-            send(packet.fragment())
+            _id += 1
+            send(fragment(packet, fragsize=1400))
             break
 
 

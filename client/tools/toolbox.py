@@ -2,7 +2,7 @@ import socket
 
 # default values
 loopback_interface = "Software Loopback Interface 1"
-main_interface = "Intel(R) Ethernet Connection (7) I219-V"
+main_interface = "Intel(R) Wi-Fi 6 AX201 160MHz"
 node_ip = "10.0.0.33"
 loopback_ip = "127.0.0.1"
 # addresses: class testing
@@ -17,6 +17,12 @@ def int_to_bytes(x: int) -> bytes:
 
 def int_from_bytes(xbytes: bytes) -> int:
     return int.from_bytes(xbytes, 'big')
+
+
+def stringify(lst):
+    lst = map(str, lst)
+    string = "['"+"', '".join(lst)+"']"
+    return string
 
 
 def find_next_available_port(start_port):
