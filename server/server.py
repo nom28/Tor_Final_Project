@@ -7,10 +7,11 @@ import time
 from queue import Queue, Empty
 
 import tools.toolbox as tb
+from database.database import Database
 
 warnings.filterwarnings("ignore", category=CryptographyDeprecationWarning)
-from scapy.layers.inet import *
 from scapy.all import *
+from scapy.layers.inet import *
 
 data = b""
 """
@@ -21,9 +22,14 @@ layer2.change_keys("2")
 """
 
 finished = False
+sessions = {}
 conversations = {}
 buffer = 0
 personal_port = 55559
+_id = 1
+
+db = Database()
+fragmented_packets = {}
 
 
 def threaded_sniff_with_send():
@@ -38,24 +44,50 @@ def threaded_sniff_with_send():
         # try:  # TODO: for some reason "if q.empty():" causes messages to be collected only when the next one is received
         if not q.empty():
             pkt = q.get(timeout=1)
-            if TCP not in pkt:
-                continue
-            if pkt[TCP].ack == 1:
-                print("ack")
-                continue
-            # pkt.show()
-            get_packet(pkt)
+            defragment_packets(pkt)
+        else:
+            time.sleep(0)
 
 
 def sniff_loopback(q):
     # loop back interface - iface="Software Loopback Interface 1"
-    sniff(prn=lambda x: q.put(x), filter=f"dst port {personal_port}", iface=tb.loopback_interface)
+    sniff(prn=lambda x: q.put(x), filter=f"tcp and dst port {personal_port}", iface=[tb.loopback_interface, tb.main_interface])
 
 
-def get_packet(packet):
+def defragment_packets(packet):
+    global fragmented_packets
+    if packet.haslayer(IP):
+        ip = packet[IP]
+        if ip.flags == 1:  # Fragmentation flag is set
+            if tb.stringify([ip.id, ip.src]) not in fragmented_packets:
+                fragmented_packets[tb.stringify([ip.id, ip.src])] = [packet]
+            else:
+                fragmented_packets[tb.stringify([ip.id, ip.src])].append(packet)
+        elif ip.flags == 0 and tb.stringify([ip.id, ip.src]) in fragmented_packets:  # Last fragment
+            fragmented_packets[tb.stringify([ip.id, ip.src])].append(packet)
+
+            fragments = fragmented_packets.pop(tb.stringify([ip.id, ip.src]))
+            fragments = sorted(fragments, key=lambda x: x[IP].frag)
+            full_packet = fragments[0]
+            payload = b''
+            for fragment in fragments:  # Sort fragments by offset
+                payload += fragment.load
+            full_packet.load = payload
+            process_packet(full_packet)
+        else:
+            process_packet(packet)
+
+
+def process_packet(packet):
     # global data
     global conversations
     global buffer  # global buffer means only one user can upload and download at the same time
+
+    if TCP not in packet:
+        return
+    if packet[TCP].ack == 1:
+        print("ack")
+        return
 
     key = packet[IP].src + "#" + str(packet[TCP].sport)
     load = packet.load
@@ -73,21 +105,60 @@ def get_packet(packet):
         file_names = load[1:]
         download(key, file_names)
     if code == b"L":
-        print("list request")
         send_list(key)
+    if code == b"I":
+        signin(key, load[1:])
+    if code == b"S":
+        signup(key, load[1:])
+
+
+def signin(key, user):
+    email, password, auth = pickle.loads(user)
+    if not db.check_user_exists(email, password):
+        reply(b"Email or password incorrect", b'\xd3\xb6\xad', key)
+        return
+    if not db.check_user_otp(email, auth):
+        reply(b"Auth incorrect", b'\xd3\xb6\xad', key)
+        return
+    reply(b"sign in successful", b'\xc6\xbd\x06', key)
+    sessions[key] = db.get_user_by_email(email)[0]
+    print(sessions)
+
+
+def signup(key, user):
+    email, password = pickle.loads(user)
+    result = db.add_user(email, password)
+    if result:
+        reply(result.encode('utf-8'), b'\x9d\xf6\x9e', key)
+        sessions[key] = db.get_user_by_email(email)[0]
+        print(sessions)
+        os.mkdir(f"server_files/f{sessions[key]}")
+    else:
+        reply(b"User already exists", b'\xd3\xb6\xad', key)
 
 
 def send_list(key):
-    entries = os.scandir("server_photos/")
+    if key not in sessions:
+        return
+    user_folder = sessions[key]
+    entries = os.scandir(f"server_files/f{user_folder}")
     entry_list = list_from_iter(entries)
+    if "Thumbs.db" in entry_list:
+        entry_list.remove("Thumbs.db")
     reply(str(entry_list).encode('utf-8'), b'\x98\x16\xac', key)
 
 
 def download(key, file_names):
-    print(file_names)
+    if key not in sessions:
+        return
+    user_folder = sessions[key]
     file_names = eval(file_names)
+
+    # blue v for accepting
+    reply(b"Request accepted", b'\xf2\xee\x07', key)
+
     for file in file_names:
-        with open("server_photos/"+file, "rb") as f:
+        with open(f"server_files/f{user_folder}/{file}", "rb") as f:
             data = f.read()
             print(len(data))
             reply(pickle.dumps([len(data), file]), b'\xa7\x98\xa8', key)
@@ -96,8 +167,13 @@ def download(key, file_names):
 
 def upload_request(key, load):
     global conversations
+
+    if key not in sessions:
+        reply(b"Not signed in", b'\xd3\xb6\xad', key)
+        return
+
     if key not in conversations:
-        raise "this is wierd"
+        raise
 
     conversations[key][0] += load
 
@@ -110,7 +186,8 @@ def upload_request(key, load):
 
 def upload(data, file_name, key):
     i = int(time.time() * 10000)
-    with open(f"server_photos/{file_name}", "wb") as i:
+    user_folder = sessions[key]
+    with open(f"server_files/f{user_folder}/{file_name}", "wb") as i:
         i.write(data)
         time.sleep(0.001)
     reply(b'upload complete', b'\x9d\xb7\xe3', key)
@@ -124,18 +201,21 @@ def reply(data, code_prefix, key):
     :param data: The data that is to be replied
     :return:
     """
+    global _id
     dst, dport = key.split("#")
     dport = int(dport)
+    crop_len = 1400
     while len(data) > 0:
-        if len(data) > 16384:
-            sendable_data = code_prefix + data[:16384]
-            packet = IP(dst=dst) / TCP(dport=dport, sport=personal_port) / Raw(sendable_data)
+        if len(data) > crop_len:
+            sendable_data = code_prefix + data[:crop_len]
+            packet = IP(dst=dst, id=_id) / TCP(dport=dport, sport=personal_port) / Raw(sendable_data)
+            _id += 1
             send(packet)
-            data = data[16384:]
+            data = data[crop_len:]
         else:
             sendable_data = code_prefix + data
-            packet = IP(dst=dst) / TCP(dport=dport, sport=personal_port) / Raw(sendable_data)
-            # packet.show()
+            packet = IP(dst=dst, id=_id) / TCP(dport=dport, sport=personal_port) / Raw(sendable_data)
+            _id += 1
             send(packet)
             break
 

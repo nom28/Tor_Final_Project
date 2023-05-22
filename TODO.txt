@@ -1,8 +1,8 @@
 TODO:
 maybe add legal tcp connection
+multiple servers
 
-different users on server
+fix node/server sending bug
 change local directory on client
 multiple client bug fix - should be fixed, must check
-multiple servers
 directory server
