@@ -1,4 +1,7 @@
+import struct
 import warnings
+
+
 from cryptography.utils import CryptographyDeprecationWarning
 from threading import Thread
 import time
@@ -97,6 +100,7 @@ def process_packet(pkt):
             prev_addr_to_ports.add(src_address, available_port)
 
         pkt = decrypt_packet(pkt.load)
+
         ip, port, session_id, data = pkt  # session key becomes redundant
         print(f"{key_num}-->{ip}:{port}")
         send_data(data, ip, port, prev_addr_to_ports.get_value(src_address))
@@ -129,9 +133,11 @@ def encrypt_packet(data):
 
 def send_data(data, ip, port, cport):
     global _id
-    packet = IP(dst=ip) / TCP(dport=port, sport=cport) / Raw(data)
+    packet = IP(dst=ip, id=_id) / TCP(dport=port, sport=cport) / Raw(data)
     _id += 1
-    send(fragment(packet, fragsize=1400))
+    a = fragment(packet, fragsize=1400)
+    print(packet.load)
+    send(a)
 
 
 if __name__ == '__main__':
@@ -139,6 +145,6 @@ if __name__ == '__main__':
         personal_port = int(sys.argv[1])
         start_port = int(sys.argv[2])
         key_num = sys.argv[3]
-
+        # _id *= int(key_num)
         node_layer.change_keys(key_num, True)
     threaded_sniff_with_send()

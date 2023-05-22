@@ -204,18 +204,19 @@ def reply(data, code_prefix, key):
     global _id
     dst, dport = key.split("#")
     dport = int(dport)
+    crop_len = 1400
     while len(data) > 0:
-        if len(data) > 16384:
-            sendable_data = code_prefix + data[:16384]
-            packet = IP(dst=dst) / TCP(dport=dport, sport=personal_port) / Raw(sendable_data)
+        if len(data) > crop_len:
+            sendable_data = code_prefix + data[:crop_len]
+            packet = IP(dst=dst, id=_id) / TCP(dport=dport, sport=personal_port) / Raw(sendable_data)
             _id += 1
-            send(fragment(packet, fragsize=1400))
-            data = data[16384:]
+            send(packet)
+            data = data[crop_len:]
         else:
             sendable_data = code_prefix + data
-            packet = IP(dst=dst) / TCP(dport=dport, sport=personal_port) / Raw(sendable_data)
+            packet = IP(dst=dst, id=_id) / TCP(dport=dport, sport=personal_port) / Raw(sendable_data)
             _id += 1
-            send(fragment(packet, fragsize=1400))
+            send(packet)
             break
 
 

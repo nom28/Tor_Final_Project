@@ -62,6 +62,7 @@ class Client:
                 if tb.stringify([ip.id, ip.src]) not in self.fragmented_packets:
                     self.fragmented_packets[tb.stringify([ip.id, ip.src])] = [packet]
                 else:
+                    print("frag:", packet[IP].frag)
                     self.fragmented_packets[tb.stringify([ip.id, ip.src])].append(packet)
             elif ip.flags == 0 and tb.stringify([ip.id, ip.src]) in self.fragmented_packets:  # Last fragment
                 self.fragmented_packets[tb.stringify([ip.id, ip.src])].append(packet)
@@ -69,7 +70,9 @@ class Client:
                 fragments = sorted(fragments, key=lambda x: x[IP].frag)
                 full_packet = fragments[0]
                 payload = b''
+                print("----")
                 for fragment in fragments:  # Sort fragments by offset
+                    print(fragment)
                     payload += fragment.load
                 full_packet.load = payload
                 self.process_packet(full_packet, d)
@@ -93,13 +96,13 @@ class Client:
             print("sending")
             if len(data) > 16384:
                 encrypted_data = self.full_encrypt(code_prefix + data[:16384])
-                packet = IP(dst=tb.addresses[1][0]) / TCP(dport=tb.addresses[1][1], sport=self.personal_port) / Raw(encrypted_data)
+                packet = IP(dst=tb.addresses[1][0], id=self._id) / TCP(dport=tb.addresses[1][1], sport=self.personal_port) / Raw(encrypted_data)
                 self._id += 1
                 send(fragment(packet, fragsize=1400))
                 data = data[16384:]
             else:
                 encrypted_data = self.full_encrypt(code_prefix + data)
-                packet = IP(dst=tb.addresses[1][0]) / TCP(dport=tb.addresses[1][1], sport=self.personal_port) / Raw(encrypted_data)
+                packet = IP(dst=tb.addresses[1][0], id=self._id) / TCP(dport=tb.addresses[1][1], sport=self.personal_port) / Raw(encrypted_data)
                 self._id += 1
                 send(fragment(packet, fragsize=1400))
                 break

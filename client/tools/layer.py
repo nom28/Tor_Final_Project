@@ -134,6 +134,8 @@ class Layer:
 
         encrypted_data = encrypted_data[256:]
         f = Fernet(decrypted_key)
+        print(decrypted_key)
+        print(encrypted_data)
         return [decrypted_session_id, f.decrypt(encrypted_data)]
 
     @staticmethod
