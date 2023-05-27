@@ -1,4 +1,5 @@
 import customtkinter
+from tkinter import filedialog as fd
 import os
 from PIL import Image
 import time
@@ -43,46 +44,71 @@ class App(customtkinter.CTk):
 
         # load images with light and dark mode image
         image_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "client_files/test_images")
-        self.logo_image = customtkinter.CTkImage(light_image=Image.open(os.path.join(image_path, "PASTA_logo_dark.png")),
-                                                 dark_image=Image.open(os.path.join(image_path, "PASTA_logo_light.png")), size=(60, 30))
-        self.home_image = customtkinter.CTkImage(light_image=Image.open(os.path.join(image_path, "home_dark.png")),
-                                                 dark_image=Image.open(os.path.join(image_path, "home_light.png")), size=(20, 20))
-        self.chat_image = customtkinter.CTkImage(light_image=Image.open(os.path.join(image_path, "upload_dark.png")),
-                                                 dark_image=Image.open(os.path.join(image_path, "upload_light.png")), size=(20, 20))
-        self.add_user_image = customtkinter.CTkImage(light_image=Image.open(os.path.join(image_path, "download_dark.png")),
-                                                     dark_image=Image.open(os.path.join(image_path, "download_light.png")), size=(20, 20))
+        self.logo_image = customtkinter.CTkImage(
+            light_image=Image.open(os.path.join(image_path, "PASTA_logo_dark.png")),
+            dark_image=Image.open(os.path.join(image_path, "PASTA_logo_light.png")), size=(60, 30))
+        self.home_image = customtkinter.CTkImage(
+            light_image=Image.open(os.path.join(image_path, "home_dark.png")),
+            dark_image=Image.open(os.path.join(image_path, "home_light.png")), size=(20, 20))
+        self.upload_image = customtkinter.CTkImage(
+            light_image=Image.open(os.path.join(image_path, "upload_dark.png")),
+            dark_image=Image.open(os.path.join(image_path, "upload_light.png")), size=(20, 20))
+        self.download_image = customtkinter.CTkImage(
+            light_image=Image.open(os.path.join(image_path, "download_dark.png")),
+            dark_image=Image.open(os.path.join(image_path, "download_light.png")), size=(20, 20))
+        self.settings_image = customtkinter.CTkImage(
+            light_image=Image.open(os.path.join(image_path, "settings_dark.png")),
+            dark_image=Image.open(os.path.join(image_path, "settings_light.png")), size=(20, 20))
 
         # create navigation frame
         self.navigation_frame = customtkinter.CTkFrame(self, corner_radius=0)
         self.navigation_frame.grid(row=0, column=0, sticky="nsew")
         self.navigation_frame.grid_rowconfigure(4, weight=1)
 
-        self.navigation_frame_label = customtkinter.CTkLabel(self.navigation_frame, text="  PASTA", image=self.logo_image,
-                                                             compound="left", font=customtkinter.CTkFont(size=15, weight="bold"))
+        self.navigation_frame_label = customtkinter.CTkLabel(self.navigation_frame, text="  PASTA",
+                                                             image=self.logo_image, compound="left",
+                                                             font=customtkinter.CTkFont(size=15, weight="bold"))
         self.navigation_frame_label.grid(row=0, column=0, padx=20, pady=20)
 
-        self.home_button = customtkinter.CTkButton(self.navigation_frame, corner_radius=0, height=40, border_spacing=10, text="Home",
-                                                   fg_color="transparent", text_color=("gray10", "gray90"), hover_color=("gray70", "gray30"),
-                                                   image=self.home_image, anchor="w", command=self.home_button_event)
-        self.home_button.grid(row=1, column=0, sticky="ew")
+        self.home_button = customtkinter.CTkButton(self.navigation_frame, corner_radius=0, height=40,
+                                                   border_spacing=10, text="Home",
+                                                   fg_color="transparent", text_color=("gray10", "gray90"),
+                                                   hover_color=("gray70", "gray30"),
+                                                   image=self.home_image, anchor="w",
+                                                   command=self.home_button_event)
+        self.home_button.grid(row=1, column=0, sticky="new")
 
-        self.frame_2_button = customtkinter.CTkButton(self.navigation_frame, corner_radius=0, height=40, border_spacing=10, text="Upload",
-                                                      fg_color="transparent", text_color=("gray10", "gray90"), hover_color=("gray70", "gray30"),
-                                                      image=self.chat_image, anchor="w", command=self.frame_2_button_event)
-        self.frame_2_button.grid(row=2, column=0, sticky="ew")
+        self.frame_2_button = customtkinter.CTkButton(self.navigation_frame, corner_radius=0, height=40,
+                                                      border_spacing=10, text="Upload",
+                                                      fg_color="transparent", text_color=("gray10", "gray90"),
+                                                      hover_color=("gray70", "gray30"),
+                                                      image=self.upload_image, anchor="w",
+                                                      command=self.frame_2_button_event)
+        self.frame_2_button.grid(row=2, column=0, sticky="new")
 
-        self.frame_3_button = customtkinter.CTkButton(self.navigation_frame, corner_radius=0, height=40, border_spacing=10, text="Download",
-                                                      fg_color="transparent", text_color=("gray10", "gray90"), hover_color=("gray70", "gray30"),
-                                                      image=self.add_user_image, anchor="w", command=self.frame_3_button_event)
-        self.frame_3_button.grid(row=3, column=0, sticky="ew")
+        self.frame_3_button = customtkinter.CTkButton(self.navigation_frame, corner_radius=0, height=40,
+                                                      border_spacing=10, text="Download",
+                                                      fg_color="transparent", text_color=("gray10", "gray90"),
+                                                      hover_color=("gray70", "gray30"),
+                                                      image=self.download_image, anchor="w",
+                                                      command=self.frame_3_button_event)
+        self.frame_3_button.grid(row=3, column=0, sticky="new")
+
+        self.frame_4_button = customtkinter.CTkButton(self.navigation_frame, corner_radius=0, height=40,
+                                                      border_spacing=10, text="Settings",
+                                                      fg_color="transparent", text_color=("gray10", "gray90"),
+                                                      hover_color=("gray70", "gray30"),
+                                                      image=self.settings_image, anchor="w",
+                                                      command=self.frame_4_button_event)
+        self.frame_4_button.grid(row=4, column=0, sticky="new")
 
         self.update_label = customtkinter.CTkLabel(self.navigation_frame, text="", text_color=("gray10", "gray90"),
                                                    compound="left", font=("arial", 12))
-        self.update_label.grid(row=5, column=0, padx=20, pady=10, sticky="sw")
+        self.update_label.grid(row=6, column=0, padx=20, pady=10, sticky="sw")
 
         self.appearance_mode_menu = customtkinter.CTkOptionMenu(self.navigation_frame, values=["Dark", "Light"],
                                                                 command=self.change_appearance_mode_event)
-        self.appearance_mode_menu.grid(row=6, column=0, padx=20, pady=20, sticky="s")
+        self.appearance_mode_menu.grid(row=7, column=0, padx=20, pady=20, sticky="s")
 
         # create home frame signup
         self.home_frame_signup = customtkinter.CTkFrame(self, corner_radius=0, fg_color="transparent")
@@ -175,6 +201,30 @@ class App(customtkinter.CTk):
         self.download_button = customtkinter.CTkButton(master=self.third_frame, text='Download')
         self.download_button.grid(row=2, column=0, padx=20, pady=10)
 
+        # create fourth frame
+        self.fourth_frame = customtkinter.CTkFrame(self, corner_radius=0, fg_color="transparent")
+        self.fourth_frame.grid_columnconfigure(0, weight=1)
+
+        self.settings_label = customtkinter.CTkLabel(self.fourth_frame, text="Settings", font=("Arial", 18))
+        self.settings_label.grid(row=0, column=0, padx=20, pady=20)
+
+        self.settings_frame = customtkinter.CTkFrame(master=self.fourth_frame)
+        self.settings_frame.grid(row=1, column=0, padx=20, pady=10)
+
+        self.settings_entry = customtkinter.CTkEntry(master=self.settings_frame, placeholder_text="Directory")
+        self.settings_entry.grid(row=0, column=0, padx=20, pady=10)
+
+        self.settings_label = customtkinter.CTkLabel(self.settings_frame, text="Or")
+        self.settings_label.grid(row=0, column=1, padx=20, pady=20)
+
+        self.choose_dir_button = customtkinter.CTkButton(master=self.settings_frame, text='Directory',
+                                                         command=self.choose_local_directory_button_event)
+        self.choose_dir_button.grid(row=0, column=2, padx=20, pady=10)
+
+        self.settings_save_button = customtkinter.CTkButton(master=self.settings_frame, text='Save',
+                                                            command=self.settings_save_button_event)
+        self.settings_save_button.grid(row=1, column=0, columnspan=3, padx=10, pady=20)
+
         # select default frame
         self.select_frame_by_name("home signin")
         self.change_appearance_mode_event("Dark")
@@ -238,6 +288,8 @@ class App(customtkinter.CTk):
         self.home_button.configure(fg_color=("gray75", "gray25") if name.split(" ")[0] == "home" else "transparent")
         self.frame_2_button.configure(fg_color=("gray75", "gray25") if name == "upload" else "transparent")
         self.frame_3_button.configure(fg_color=("gray75", "gray25") if name == "download" else "transparent")
+        self.frame_4_button.configure(fg_color=("gray75", "gray25") if name == "settings" else "transparent")
+
 
         # show selected frame
         if name == "home info":
@@ -260,6 +312,10 @@ class App(customtkinter.CTk):
             self.third_frame.grid(row=0, column=1, sticky="nsew")
         else:
             self.third_frame.grid_forget()
+        if name == "settings":
+            self.fourth_frame.grid(row=0, column=1, sticky="nsew")
+        else:
+            self.fourth_frame.grid_forget()
 
     def home_button_event(self):
         if self.loggedin:
@@ -302,11 +358,31 @@ class App(customtkinter.CTk):
         timestamp = time.strftime("%H:%M:%S", time.localtime())
         self.update_label.configure(text=f"[{timestamp}] Upload finished", text_color=("gray10", "gray90"))
 
-
-
     def frame_3_button_event(self):
         self.select_frame_by_name("download")
         self.c.send(b"0", b"L")  # first argument is the page number
+
+    def frame_4_button_event(self):
+        self.select_frame_by_name("settings")
+
+    def choose_local_directory_button_event(self):
+        dir = fd.askdirectory()
+        print(dir)
+        self.settings_entry.insert(0, dir)
+
+    def settings_save_button_event(self):
+        dir = self.settings_entry.get()
+        timestamp = time.strftime("%H:%M:%S", time.localtime())
+        if not dir or not os.path.exists(dir):
+            self.update_label.configure(text=f"[{timestamp}] Dir doesn't exist", text_color="red")
+            return
+
+        self.config.read('client_files/client_settings.ini')
+        self.config.set('Directories', 'localdir', dir)
+
+        with open('client_files/client_settings.ini', 'w') as configfile:
+            self.config.write(configfile)
+        self.update_label.configure(text=f"[{timestamp}] Dir updated", text_color="green")
 
     def change_appearance_mode_event(self, new_appearance_mode):
         customtkinter.set_appearance_mode(new_appearance_mode)
