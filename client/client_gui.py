@@ -120,14 +120,15 @@ class App(customtkinter.CTk):
         self.signup_frame = customtkinter.CTkFrame(master=self.home_frame_signup)
         self.signup_frame.grid(row=1, column=0, padx=20, pady=10)
 
-        self.email_entry_up = customtkinter.CTkEntry(master=self.signup_frame, placeholder_text="Email")
-        self.email_entry_up.grid(row=0, column=0, padx=20, pady=10)
-
-        self.user_pass_up = customtkinter.CTkEntry(master=self.signup_frame, placeholder_text="Password", show="*")
-        self.user_pass_up.grid(row=1, column=0, padx=20, pady=10)
+        signup_info = """To sign-up, no info is needed. 
+        Although, please note
+        to gain access to your files
+        you MUST write down your hash and 2FA code"""
+        self.signup_info_label = customtkinter.CTkLabel(master=self.signup_frame, text=signup_info)
+        self.signup_info_label.grid(row=0, column=0, padx=30, pady=20)
 
         self.signup_button = customtkinter.CTkButton(master=self.signup_frame, text='Sign up', command=self.signup)
-        self.signup_button.grid(row=3, column=0, padx=20, pady=10)
+        self.signup_button.grid(row=1, column=0, padx=20, pady=10)
 
         self.switch_in_button = customtkinter.CTkButton(master=self.home_frame_signup, text='Sign In',
                                                         command=lambda: self.select_frame_by_name("home signin"))
@@ -143,17 +144,14 @@ class App(customtkinter.CTk):
         self.signin_frame = customtkinter.CTkFrame(master=self.home_frame_signin)
         self.signin_frame.grid(row=1, column=0, padx=20, pady=10)
 
-        self.email_entry_in = customtkinter.CTkEntry(master=self.signin_frame, placeholder_text="Email")
-        self.email_entry_in.grid(row=0, column=0, padx=20, pady=10)
-
-        self.user_pass_in = customtkinter.CTkEntry(master=self.signin_frame, placeholder_text="Password", show="*")
-        self.user_pass_in.grid(row=1, column=0, padx=20, pady=10)
+        self.hash_entry = customtkinter.CTkEntry(master=self.signin_frame, placeholder_text="User Hash")
+        self.hash_entry.grid(row=0, column=0, padx=20, pady=10)
 
         self.auth_entry = customtkinter.CTkEntry(master=self.signin_frame, placeholder_text="2FA")
-        self.auth_entry.grid(row=2, column=0, padx=20, pady=10)
+        self.auth_entry.grid(row=1, column=0, padx=20, pady=10)
 
         self.signin_button = customtkinter.CTkButton(master=self.signin_frame, text='Sign In', command=self.signin)
-        self.signin_button.grid(row=3, column=0, padx=20, pady=10)
+        self.signin_button.grid(row=2, column=0, padx=20, pady=10)
 
         self.switch_up_button = customtkinter.CTkButton(master=self.home_frame_signin, text='Sign Up',
                                                         command=lambda: self.select_frame_by_name("home signup"))
@@ -173,7 +171,6 @@ class App(customtkinter.CTk):
             info = i.read()
         self.info_block_label = customtkinter.CTkLabel(self.home_info, text=info)
         self.info_block_label.grid(row=2, column=0, padx=20, pady=20, sticky="w")
-
 
         # create second frame
         self.second_frame = customtkinter.CTkFrame(self, corner_radius=0, fg_color="transparent")
@@ -270,18 +267,17 @@ class App(customtkinter.CTk):
         self.update_label.configure(text=f"[{timestamp}] {str(msg)}", text_color="red")
 
     def signup_successful(self, msg):
+        h, tfa = pickle.loads(msg)
         self.loggedin = True
         self.update_label.configure(text="")
-        self.auth_label.configure(text=f"YOUR 2FA KEY: \n {str(msg)} \n KEEP THIS AT ALL COSTS")
+        self.auth_label.configure(text=f"Your User Hash:\n{str(h)}\nYour 2FA key:\n{str(tfa)}\nKEEP THIS AT ALL COSTS")
         self.select_frame_by_name("home info")
-        print(msg)
 
     def signin_successful(self, msg):
         self.loggedin = True
         self.update_label.configure(text="")
         self.auth_label.configure(text="")
         self.select_frame_by_name("home info")
-        print(msg)
 
     def select_frame_by_name(self, name):
         # set button color for selected button
@@ -388,17 +384,12 @@ class App(customtkinter.CTk):
         customtkinter.set_appearance_mode(new_appearance_mode)
 
     def signup(self):
-        email = self.email_entry_up.get()
-        password = self.user_pass_up.get()
-        print(email, password)
-        self.c.send(pickle.dumps([email, password]), b"S")
+        self.c.send(b"0", b"S")
 
     def signin(self):
-        email = self.email_entry_in.get()
-        password = self.user_pass_in.get()
+        h = self.hash_entry.get()
         auth2fa = self.auth_entry.get()
-        print(email, password, auth2fa)
-        self.c.send(pickle.dumps([email, password, auth2fa]), b"I")
+        self.c.send(pickle.dumps([h, auth2fa]), b"I")
 
     def file_list(self, data):
         files = eval(data)

@@ -5,6 +5,7 @@ from cryptography.utils import CryptographyDeprecationWarning
 from threading import Thread
 import time
 from queue import Queue, Empty
+import secrets
 
 import tools.toolbox as tb
 from database.database import Database
@@ -113,26 +114,30 @@ def process_packet(packet):
 
 
 def signin(key, user):
-    email, password, auth = pickle.loads(user)
-    if not db.check_user_exists(email, password):
-        reply(b"Email or password incorrect", b'\xd3\xb6\xad', key)
+    h, auth = pickle.loads(user)
+    if not db.check_user_exists(h):
+        reply(b"Hash incorrect", b'\xd3\xb6\xad', key)
         return
-    if not db.check_user_otp(email, auth):
+    if not db.check_user_otp(h, auth):
         reply(b"Auth incorrect", b'\xd3\xb6\xad', key)
         return
     reply(b"sign in successful", b'\xc6\xbd\x06', key)
-    sessions[key] = db.get_user_by_email(email)[0]
+    sessions[key] = db.get_user_by_hash(h)[0]
     print(sessions)
 
 
 def signup(key, user):
-    email, password = pickle.loads(user)
-    result = db.add_user(email, password)
+    alphabet = string.ascii_letters + string.digits
+    random_hash = ''.join(secrets.choice(alphabet) for _ in range(10))
+
+    result = db.add_user(random_hash)
+    print(result)
+    print(db.get_all_users())
     if result:
-        reply(result.encode('utf-8'), b'\x9d\xf6\x9e', key)
-        sessions[key] = db.get_user_by_email(email)[0]
+        sessions[key] = db.get_user_by_hash(random_hash)[0]
         print(sessions)
         os.mkdir(f"server_files/f{sessions[key]}")
+        reply(pickle.dumps((random_hash, result)), b'\x9d\xf6\x9e', key)
     else:
         reply(b"User already exists", b'\xd3\xb6\xad', key)
 
