@@ -380,6 +380,8 @@ class App(customtkinter.CTk):
             self.config.write(configfile)
         self.update_label.configure(text=f"[{timestamp}] Dir updated", text_color="green")
 
+        self.local_dir = dir
+
     def change_appearance_mode_event(self, new_appearance_mode):
         customtkinter.set_appearance_mode(new_appearance_mode)
 
