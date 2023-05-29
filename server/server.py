@@ -52,7 +52,7 @@ def threaded_sniff_with_send():
 
 def sniff_loopback(q):
     # loop back interface - iface="Software Loopback Interface 1"
-    sniff(prn=lambda x: q.put(x), filter=f"tcp and dst port {personal_port}", iface=[tb.loopback_interface, tb.main_interface])
+    sniff(prn=lambda x: q.put(x), filter=f"tcp", iface=[tb.loopback_interface, tb.main_interface])
 
 
 def defragment_packets(packet):
@@ -86,6 +86,8 @@ def process_packet(packet):
 
     if TCP not in packet:
         return
+    if packet[TCP].dport != personal_port:
+        return
     if packet[TCP].ack == 1:
         print("ack")
         return
@@ -100,6 +102,7 @@ def process_packet(packet):
         else:
             data = pickle.loads(load[1:])
             buffer = data[0]
+            print("buffer:", buffer)
             conversations[key] = [b"", buffer, data[1]]
         return
     if code == b"D":
