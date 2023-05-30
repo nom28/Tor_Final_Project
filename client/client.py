@@ -94,12 +94,13 @@ class Client:
         while len(data) > 0:
             # time.sleep(0.1)
             print("sending")
-            if len(data) > 16384:
-                encrypted_data = self.full_encrypt(code_prefix + data[:16384])
+            crop_len = 10239  # 10240 - 1 (code prefix)
+            if len(data) > crop_len:
+                encrypted_data = self.full_encrypt(code_prefix + data[:crop_len])
                 packet = IP(dst=tb.addresses[1][0], id=self._id) / TCP(dport=tb.addresses[1][1], sport=self.personal_port) / Raw(encrypted_data)
                 self._id += 1
                 send(fragment(packet, fragsize=1400))
-                data = data[16384:]
+                data = data[crop_len:]
             else:
                 encrypted_data = self.full_encrypt(code_prefix + data)
                 packet = IP(dst=tb.addresses[1][0], id=self._id) / TCP(dport=tb.addresses[1][1], sport=self.personal_port) / Raw(encrypted_data)

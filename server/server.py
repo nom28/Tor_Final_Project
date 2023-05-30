@@ -27,7 +27,7 @@ sessions = {}
 conversations = {}
 buffer = 0
 personal_port = 55559
-_id = 1
+_id = 40000
 
 db = Database()
 fragmented_packets = {}
@@ -212,19 +212,19 @@ def reply(data, code_prefix, key):
     global _id
     dst, dport = key.split("#")
     dport = int(dport)
-    crop_len = 1400
+    crop_len = 12797
     while len(data) > 0:
         if len(data) > crop_len:
             sendable_data = code_prefix + data[:crop_len]
             packet = IP(dst=dst, id=_id) / TCP(dport=dport, sport=personal_port) / Raw(sendable_data)
             _id += 1
-            send(packet)
+            send(fragment(packet, fragsize=1400))
             data = data[crop_len:]
         else:
             sendable_data = code_prefix + data
             packet = IP(dst=dst, id=_id) / TCP(dport=dport, sport=personal_port) / Raw(sendable_data)
             _id += 1
-            send(packet)
+            send(fragment(packet, fragsize=1400))
             break
 
 

@@ -49,10 +49,6 @@ def threaded_sniff_with_send():
 def defragment_packets(packet):
     global fragmented_packets
     if not packet.haslayer(IP):
-        try:
-            send(packet, verbose=False)
-        except Exception as e:
-            print(f"Error sending packet: {e}")
         return
     ip = packet[IP]
     if ip.flags == 1:  # Fragmentation flag is set
@@ -109,11 +105,6 @@ def process_packet(pkt):
         print(f"{ip}:{port}<--{key_num}")
         data = encrypt_packet(pkt.load)
         send_data(data, ip, int(port), personal_port)
-    else:  # if packet is not meant for the platform
-        try:
-            send(pkt, verbose=False)
-        except Exception as e:
-            print(f"Error sending packet: {e}")
 
 
 # "Software Loopback Interface 1"
@@ -145,6 +136,6 @@ if __name__ == '__main__':
         personal_port = int(sys.argv[1])
         start_port = int(sys.argv[2])
         key_num = sys.argv[3]
-        # _id *= int(key_num)
+        _id *= int(key_num)
         node_layer.change_keys(key_num, True)
     threaded_sniff_with_send()
