@@ -80,7 +80,7 @@ class Database:
 
     def remove_user(self, h):
         """
-        function that removes a user from the users table by the email
+        function that removes a user from the users table by the hash
         :param h: str - user hash
         :return: None
         """
@@ -109,7 +109,7 @@ class Database:
 
     def get_user_by_hash(self, h):
         """
-        returning user row by email
+        returning user row by hash
         :param h: str - user hash
         :return: tuple - user row
         """

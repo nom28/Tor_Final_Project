@@ -1,11 +1,10 @@
-import struct
 import warnings
-
-
+import pickle
 from cryptography.utils import CryptographyDeprecationWarning
 from threading import Thread
 import time
 from queue import Queue, Empty
+import atexit
 
 from tools.layer import Layer
 from tools.bidict import BiDict
@@ -21,6 +20,7 @@ layer0 = Layer()
 layer0.change_keys("0", False)
 
 node_layer = Layer()
+key_dir = ""
 
 finished = False
 prev_addr_to_ports = BiDict()
@@ -28,7 +28,56 @@ fragmented_packets = {}
 _id = 1
 
 
-def threaded_sniff_with_send():
+def disconnect(HOST, PORT):
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    s.connect(('8.8.8.8', 80))
+    nat_ip_address = s.getsockname()[0]
+    s.close()
+
+    client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    client_socket.bind((nat_ip_address, personal_port))
+    client_socket.connect((HOST, PORT))
+
+    message = b"N" + pickle.dumps((nat_ip_address, personal_port, "DISCONNECTING"))
+
+    client_socket.send(message)
+    response = client_socket.recv(1024).decode('utf-8')
+
+    if response == "OK":
+        print("Disconnected")
+    else:
+        print("Disconnect unsuccessful")
+
+    client_socket.close()
+
+
+def boot(HOST, PORT):
+    node_layer.store_keys(key_dir)
+    with open(key_dir+"public_key.pem", "r") as k:
+        pk = k.read()
+
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    s.connect(('8.8.8.8', 80))
+    nat_ip_address = s.getsockname()[0]
+    s.close()
+
+    client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    client_socket.bind((nat_ip_address, personal_port))
+    client_socket.connect((HOST, PORT))
+
+    message = b"N" + pickle.dumps((nat_ip_address, personal_port, "CONNECTING", pk))
+
+    client_socket.send(message)
+    response = client_socket.recv(1024).decode('utf-8')
+
+    print(response)
+    if response != "OK" and response != "REACTIVATED":
+        input()
+
+    client_socket.close()
+
+
+def packet_handle():
     q = Queue()
 
     print("initiating sniffer")
@@ -137,5 +186,11 @@ if __name__ == '__main__':
         start_port = int(sys.argv[2])
         key_num = sys.argv[3]
         _id *= int(key_num)
-        node_layer.change_keys(key_num, True)
-    threaded_sniff_with_send()
+
+        key_dir = f"keys/keys{key_num}/"
+        # node_layer.change_keys(key_num, True)
+
+    ds_ip = "10.0.0.24"
+    atexit.register(lambda: disconnect(ds_ip, 55677))  # Not working currently
+    boot(ds_ip, 55677)
+    packet_handle()

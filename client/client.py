@@ -1,6 +1,7 @@
 import warnings
 from cryptography.utils import CryptographyDeprecationWarning
 from queue import *
+import pickle
 
 from tools.layer import Layer
 import tools.toolbox as tb
@@ -19,19 +20,66 @@ class Client:
     q = Queue()
 
     session_id = random.randbytes(20)
-    ip = tb.addresses[0][0]
-    personal_port = tb.addresses[0][1]
+    ip = None
+    personal_port = 55555
     finished = False
     fragmented_packets = {}
+    addresses = None
+
     _id = 1
 
     test_send_data = b"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+-="*300
 
     def __init__(self):
         self.layer0.change_keys("0", True)
+        ds_ip = "10.0.0.24"
+        self.boot(ds_ip, 55677)
+        # self.layer1.change_keys("1", False)
+        # self.layer2.change_keys("2", False)
+        # self.layer3.change_keys("3", False)
+
+    def boot(self, HOST, PORT):
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(('8.8.8.8', 80))
+        nat_ip_address = s.getsockname()[0]
+        s.close()
+        self.ip = nat_ip_address
+
+        client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        client_socket.bind((nat_ip_address, self.personal_port))
+        client_socket.connect((HOST, PORT))
+
+        message = b"C" + pickle.dumps((nat_ip_address, self.personal_port, "CONNECTING"))
+
+        client_socket.send(message)
+        response = client_socket.recv(2048)
+
+        if response == b"ERROR2":
+            print(response)
+            client_socket.close()
+            exit()
+
+        response = pickle.loads(response)
+        self.addresses = ((nat_ip_address, 55555),
+                          (response[0][0], response[0][1]),
+                          (response[1][0], response[1][1]),
+                          (response[2][0], response[2][1]),
+                          (tb.server_ip, 55559),)
+
+        print(self.addresses)
+
+        with open('keys\\public_key1.pem', 'wb') as f:
+            f.write(response[0][2].encode('utf-8'))
+        with open('keys\\public_key2.pem', 'wb') as f:
+            f.write(response[1][2].encode('utf-8'))
+        with open('keys\\public_key3.pem', 'wb') as f:
+            f.write(response[2][2].encode('utf-8'))
+
         self.layer1.change_keys("1", False)
         self.layer2.change_keys("2", False)
         self.layer3.change_keys("3", False)
+
+        client_socket.close()
 
     def sniffer(self, d):
         print("initiating sniffer")
@@ -97,21 +145,21 @@ class Client:
             crop_len = 10239  # 10240 - 1 (code prefix)
             if len(data) > crop_len:
                 encrypted_data = self.full_encrypt(code_prefix + data[:crop_len])
-                packet = IP(dst=tb.addresses[1][0], id=self._id) / TCP(dport=tb.addresses[1][1], sport=self.personal_port) / Raw(encrypted_data)
+                packet = IP(dst=self.addresses[1][0], id=self._id) / TCP(dport=self.addresses[1][1], sport=self.personal_port) / Raw(encrypted_data)
                 self._id += 1
                 send(fragment(packet, fragsize=1400))
                 data = data[crop_len:]
             else:
                 encrypted_data = self.full_encrypt(code_prefix + data)
-                packet = IP(dst=tb.addresses[1][0], id=self._id) / TCP(dport=tb.addresses[1][1], sport=self.personal_port) / Raw(encrypted_data)
+                packet = IP(dst=self.addresses[1][0], id=self._id) / TCP(dport=self.addresses[1][1], sport=self.personal_port) / Raw(encrypted_data)
                 self._id += 1
                 send(fragment(packet, fragsize=1400))
                 break
 
     def full_encrypt(self, data):
-        encrypted_data = self.layer3.encrypt(data, self.session_id, tb.addresses[4][0], str(tb.addresses[4][1]))
-        encrypted_data = self.layer2.encrypt(encrypted_data, self.session_id, tb.addresses[3][0], str(tb.addresses[3][1]))
-        encrypted_data = self.layer1.encrypt(encrypted_data, self.session_id, tb.addresses[2][0], str(tb.addresses[2][1]))
+        encrypted_data = self.layer3.encrypt(data, self.session_id, self.addresses[4][0], str(self.addresses[4][1]))
+        encrypted_data = self.layer2.encrypt(encrypted_data, self.session_id, self.addresses[3][0], str(self.addresses[3][1]))
+        encrypted_data = self.layer1.encrypt(encrypted_data, self.session_id, self.addresses[2][0], str(self.addresses[2][1]))
         return encrypted_data
 
     def decrypt_packet(self, data):
