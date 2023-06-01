@@ -31,7 +31,8 @@ class Client:
     test_send_data = b"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+-="*300
 
     def __init__(self):
-        self.layer0.change_keys("0", True)
+        # self.layer0.change_keys("0", True)
+        self.layer0.store_keys("0")
         ds_ip = "10.0.0.24"
         self.boot(ds_ip, 55677)
         # self.layer1.change_keys("1", False)
@@ -80,6 +81,22 @@ class Client:
         self.layer3.change_keys("3", False)
 
         client_socket.close()
+
+        self.set_up_route()
+
+    def set_up_route(self):
+        with open("keys/public_key0.pem", "rb") as pk:
+            data = pk.read()
+
+        # This is now done in a dumb way since server does not encrypt YET
+        encrypted_data = self.layer3.encrypt(data+b'B'+data, self.session_id, self.addresses[4][0], str(self.addresses[4][1]))
+        encrypted_data = self.layer2.encrypt(data+encrypted_data, self.session_id, self.addresses[3][0], str(self.addresses[3][1]))
+        encrypted_data = self.layer1.encrypt(data+encrypted_data, self.session_id, self.addresses[2][0], str(self.addresses[2][1]))
+
+        packet = IP(dst=self.addresses[1][0], id=self._id) / TCP(dport=self.addresses[1][1],
+                                                                 sport=self.personal_port) / Raw(encrypted_data)
+        self._id += 1
+        send(fragment(packet, fragsize=1400))
 
     def sniffer(self, d):
         print("initiating sniffer")

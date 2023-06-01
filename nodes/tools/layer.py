@@ -38,16 +38,16 @@ class Layer:
         with open(dir+'public_key.pem', 'wb') as f:
             f.write(pem)
 
-    def change_keys(self, sufix, self_key):
+    def change_keys(self, prefix, suffix, self_key):
         if self_key:
-            with open('keys\\private_key' + sufix + '.pem', 'rb') as key_file:
+            with open(prefix + 'private_key' + suffix + '.pem', 'rb') as key_file:
                 self.private_key = serialization.load_pem_private_key(
                     key_file.read(),
                     password=None,
                     backend=default_backend()
                 )
         else:
-            with open('keys\\public_key' + sufix + '.pem', 'rb') as key_file:
+            with open(prefix + 'public_key' + suffix + '.pem', 'rb') as key_file:
                 self.public_key = serialization.load_pem_public_key(
                     key_file.read(),
                     backend=default_backend()

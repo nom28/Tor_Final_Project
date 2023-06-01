@@ -1,5 +1,7 @@
 import warnings
 import pickle
+
+import win32print
 from cryptography.utils import CryptographyDeprecationWarning
 from threading import Thread
 import time
@@ -17,7 +19,7 @@ from scapy.layers.inet import *
 
 # CLIENT KEY - temporary
 layer0 = Layer()
-layer0.change_keys("0", False)
+# layer0.change_keys("0", False)
 
 node_layer = Layer()
 key_dir = ""
@@ -144,6 +146,9 @@ def process_packet(pkt):
             start_port += 1
             prev_addr_to_ports.add(src_address, available_port)
 
+            set_up_route(pkt, src_address)
+            return
+
         pkt = decrypt_packet(pkt.load)
 
         ip, port, session_id, data = pkt  # session key becomes redundant
@@ -152,8 +157,20 @@ def process_packet(pkt):
     elif prev_addr_to_ports.has_this_value(dport):
         ip, port = eval(prev_addr_to_ports.get_key(dport))
         print(f"{ip}:{port}<--{key_num}")
-        data = encrypt_packet(pkt.load)
+        data = encrypt_packet(pkt.load, src_address)
         send_data(data, ip, int(port), personal_port)
+
+
+def set_up_route(pkt, src_address):
+    pkt = decrypt_packet(pkt.load)
+    ip, port, session_id, data = pkt
+    pk = data[:451]
+    data = data[451:]
+
+    with open(key_dir+f"public_key{src_address}".replace(".", "_") + ".pem", "wb") as k:
+        k.write(pk)
+
+    send_data(data, ip, port, prev_addr_to_ports.get_value(src_address))
 
 
 # "Software Loopback Interface 1"
@@ -166,7 +183,8 @@ def decrypt_packet(data):
     return decrypted_data
 
 
-def encrypt_packet(data):
+def encrypt_packet(data, src_address):
+    layer0.change_keys(key_dir, f"{src_address}".replace(".", "_"), False)
     encrypted_data = layer0.b_encrypt(data)
     return encrypted_data
 
@@ -191,6 +209,6 @@ if __name__ == '__main__':
         # node_layer.change_keys(key_num, True)
 
     ds_ip = "10.0.0.24"
-    atexit.register(lambda: disconnect(ds_ip, 55677))  # Not working currently
+    # atexit.register(lambda: disconnect(ds_ip, 55677))  # Not working currently
     boot(ds_ip, 55677)
     packet_handle()

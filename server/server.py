@@ -114,6 +114,8 @@ def process_packet(packet):
         signin(key, load[1:])
     if code == b"S":
         signup(key, load[1:])
+    if code == b"B":
+        print(load[1:])
 
 
 def signin(key, user):
