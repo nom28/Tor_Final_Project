@@ -157,7 +157,7 @@ def process_packet(pkt):
     elif prev_addr_to_ports.has_this_value(dport):
         ip, port = eval(prev_addr_to_ports.get_key(dport))
         print(f"{ip}:{port}<--{key_num}")
-        data = encrypt_packet(pkt.load, src_address)
+        data = encrypt_packet(pkt.load, prev_addr_to_ports.get_key(dport))
         send_data(data, ip, int(port), personal_port)
 
 

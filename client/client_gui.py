@@ -252,6 +252,7 @@ class App(customtkinter.CTk):
                     d = self.incoming_msgs.get()
                     key = d[:3]
                     data = d[3:]
+                    print(data)
                     self.code_to_func[key](data)
                 except KeyError as e:
                     print("Error", e)
@@ -259,6 +260,7 @@ class App(customtkinter.CTk):
                 time.sleep(0)
 
     def _update_label(self, msg):
+        print("updated label")
         timestamp = time.strftime("%H:%M:%S", time.localtime())
         self.update_label.configure(text=f"[{timestamp}] {str(msg)}", text_color=("gray10", "gray90"))
 
