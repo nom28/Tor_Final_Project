@@ -151,7 +151,7 @@ def process_packet(packet):
         save_pk(key, load[1:])
         print(load[1:])
         time.sleep(1)  # This is temporary: client needs a moment to start up!
-        reply(b"great", b'\xf2\xee\x07', key)
+        reply(b"Connected", b'\xf2\xee\x07', key)
 
 
 def save_pk(key, pk):

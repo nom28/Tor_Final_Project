@@ -1,2 +1,13 @@
-this will be info further on
-:)
+Hey! welcome to PASTA.
+quick reminder that since PASTA is completely anonymous,
+you MUST keep your user-hash and 2FA key at all costs.
+There is no recovery method in case they are lost.
+
+How do I use the 2FA key?
+Great question! you must open an authenticator app
+such as "Google Authenticator",
+then, add via setup key, you may give the account whatever
+name you want. make sure it is "time based".
+when you finish, you will get a 6 digit code that switches
+every few seconds,
+that is your 2FA! use that when signing in.
