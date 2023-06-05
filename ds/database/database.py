@@ -138,16 +138,24 @@ class Database:
             return self.query(f"SELECT * FROM nodes WHERE is_up = 1")
         return self.query(f"SELECT * FROM nodes")
 
+    def delete_all_nodes(self):
+        """
+        deletes all entries in table
+        :return:
+        """
+        return self.query("DELETE FROM nodes")
+
 
 if __name__ == '__main__':
     db = Database()
-    with open("keys/public_key1.pem", "r") as p:
-        pk1 = p.read()
-    with open("keys/public_key2.pem", "r") as p:
-        pk2 = p.read()
-    db.add_node("10.0.0.33", 443, pk1, 1)
-    db.add_node("10.0.0.33", 33, pk2, 1)
-    print("all", db.get_all_nodes())
-    print("all active", db.get_all_nodes(1))
-    print("only one", db.get_node("10.0.0.33", 33))
+    # db.delete_all_nodes()
+    # with open("keys/public_key1.pem", "r") as p:
+    #     pk1 = p.read()
+    # with open("keys/public_key2.pem", "r") as p:
+    #     pk2 = p.read()
+    # db.add_node("10.0.0.33", 443, pk1, 1)
+    # db.add_node("10.0.0.33", 33, pk2, 1)
+    # print("all", db.get_all_nodes())
+    # print("all active", db.get_all_nodes(1))
+    # print("only one", db.get_node("10.0.0.33", 33))
 

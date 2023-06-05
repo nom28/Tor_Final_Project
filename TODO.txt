@@ -6,3 +6,7 @@ fix node/server sending bug
 change local directory on client
 multiple client bug fix - should be fixed, must check
 directory server
+
+TODO WHEN STARTING RUN:
+make sure disconnected nodes in the directory server are in fact, disconnected
+change directory server ip in client.py and node.py
