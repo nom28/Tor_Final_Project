@@ -433,7 +433,7 @@ class App(customtkinter.CTk):
     def save(self, data):
         self.temp_mem += data
         self.buffer -= len(data)
-        percentage = len(self.temp_mem) / (len(self.temp_mem) + self.buffer)
+        percentage = (len(self.temp_mem) / (len(self.temp_mem) + self.buffer)) * 100
         self.update_label.configure(text=f"[{self.items_downloaded + 1}/{self.download_amount}] {percentage}%",
                                     text_color=("gray10", "gray90"))
 
