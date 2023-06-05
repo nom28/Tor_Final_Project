@@ -73,6 +73,24 @@ class Layer:
 
         return product
 
+    def server_encrypt(self, data):
+        self.f = Fernet(self.key)
+        encrypted_data = self.f.encrypt(data)
+
+        heading = self.key
+
+        encrypted_heading = self.public_key.encrypt(
+            heading,
+            padding.OAEP(
+                mgf=padding.MGF1(algorithm=hashes.SHA256()),
+                algorithm=hashes.SHA256(),
+                label=None
+            )
+        )
+        product = encrypted_heading + encrypted_data
+
+        return product
+
     def b_encrypt(self, data, session_id=b""):
         # could be possible to move data in heading to the payload.
         self.f = Fernet(self.key)

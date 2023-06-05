@@ -263,11 +263,11 @@ class App(customtkinter.CTk):
     def _update_label(self, msg):
         print("updated label")
         timestamp = time.strftime("%H:%M:%S", time.localtime())
-        self.update_label.configure(text=f"[{timestamp}] {str(msg)}", text_color=("gray10", "gray90"))
+        self.update_label.configure(text=f"[{timestamp}] {msg.decode('utf-8')}", text_color=("gray10", "gray90"))
 
     def error_update(self, msg):
         timestamp = time.strftime("%H:%M:%S", time.localtime())
-        self.update_label.configure(text=f"[{timestamp}] {str(msg)}", text_color="red")
+        self.update_label.configure(text=f"[{timestamp}] {msg.decode('utf-8')}", text_color="red")
 
     def signup_successful(self, msg):
         h, tfa = pickle.loads(msg)

@@ -16,7 +16,7 @@ class Client:
     layer1 = Layer()
     layer2 = Layer()
     layer3 = Layer()
-
+    layerS = Layer()
     q = Queue()
 
     session_id = random.randbytes(20)
@@ -50,7 +50,7 @@ class Client:
         client_socket.bind((nat_ip_address, self.personal_port))
         client_socket.connect((HOST, PORT))
 
-        message = b"C" + pickle.dumps((nat_ip_address, self.personal_port, "CONNECTING"))
+        message = b"C" + pickle.dumps((nat_ip_address, self.personal_port, "CONNECTING", (tb.server_ip, 55559)))
 
         client_socket.send(message)
         response = client_socket.recv(2048)
@@ -75,10 +75,13 @@ class Client:
             f.write(response[1][2].encode('utf-8'))
         with open('keys\\public_key3.pem', 'wb') as f:
             f.write(response[2][2].encode('utf-8'))
+        with open('keys\\public_keyS.pem', 'wb') as f:
+            f.write(response[3].encode('utf-8'))
 
         self.layer1.change_keys("1", False)
         self.layer2.change_keys("2", False)
         self.layer3.change_keys("3", False)
+        self.layerS.change_keys("S", False)
 
         client_socket.close()
 
@@ -89,7 +92,8 @@ class Client:
             data = pk.read()
 
         # This is now done in a dumb way since server does not encrypt YET
-        encrypted_data = self.layer3.encrypt(data+b'B'+data, self.session_id, self.addresses[4][0], str(self.addresses[4][1]))
+        encrypted_data = self.layerS.server_encrypt(b'B'+data)
+        encrypted_data = self.layer3.encrypt(data+encrypted_data, self.session_id, self.addresses[4][0], str(self.addresses[4][1]))
         encrypted_data = self.layer2.encrypt(data+encrypted_data, self.session_id, self.addresses[3][0], str(self.addresses[3][1]))
         encrypted_data = self.layer1.encrypt(data+encrypted_data, self.session_id, self.addresses[2][0], str(self.addresses[2][1]))
 
@@ -174,13 +178,15 @@ class Client:
                 break
 
     def full_encrypt(self, data):
-        encrypted_data = self.layer3.encrypt(data, self.session_id, self.addresses[4][0], str(self.addresses[4][1]))
+        encrypted_data = self.layerS.server_encrypt(data)
+        encrypted_data = self.layer3.encrypt(encrypted_data, self.session_id, self.addresses[4][0], str(self.addresses[4][1]))
         encrypted_data = self.layer2.encrypt(encrypted_data, self.session_id, self.addresses[3][0], str(self.addresses[3][1]))
         encrypted_data = self.layer1.encrypt(encrypted_data, self.session_id, self.addresses[2][0], str(self.addresses[2][1]))
         return encrypted_data
 
     def decrypt_packet(self, data):
         decrypted_data = self.layer0.b_decrypt(data)
+        decrypted_data = self.layer0.b_decrypt(decrypted_data[1])
         decrypted_data = self.layer0.b_decrypt(decrypted_data[1])
         decrypted_data = self.layer0.b_decrypt(decrypted_data[1])
         return decrypted_data
