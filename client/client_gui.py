@@ -24,6 +24,7 @@ class App(customtkinter.CTk):
     temp_mem = b''
 
     download_amount = 0
+    items_downloaded = 0
     upload_amount = 0
 
     def __init__(self):
@@ -345,6 +346,7 @@ class App(customtkinter.CTk):
             print(file)
             with open(self.local_dir+"/"+file, "rb") as i:
                 data = i.read()
+                # print("length:", len(data))
                 self.c.send(pickle.dumps([len(data), file]), b"U")  # [size, name + type]
                 self.c.send(data, b"U")
 
@@ -407,7 +409,8 @@ class App(customtkinter.CTk):
         self.download_button.configure(command=lambda: self.download(files, variables))
 
     def download(self, files, variables):
-        if self.download_amount:
+        if self.download_amount != self.items_downloaded:
+            print("your previous download did not finish for some reason")
             return
         relevant_files = []
         for i, var in enumerate(variables):
@@ -429,19 +432,24 @@ class App(customtkinter.CTk):
 
     def save(self, data):
         self.temp_mem += data
-
         self.buffer -= len(data)
+        percentage = len(self.temp_mem) / (len(self.temp_mem) + self.buffer)
+        self.update_label.configure(text=f"[{self.items_downloaded + 1}/{self.download_amount}] {percentage}%",
+                                    text_color=("gray10", "gray90"))
+
         if self.buffer <= 0:
             with open(f"{self.local_dir}/{self.designated_file_name}", "wb") as i:
                 i.write(self.temp_mem)
 
-            self.download_amount -= 1
-            print("download amount left:", self.download_amount)
+            self.items_downloaded += 1
+            print("download amount left:", self.download_amount - self.items_downloaded)
             self.buffer = 0
             self.designated_file_name = ""
             self.temp_mem = b''
 
-            if self.download_amount:
+            if self.download_amount != self.items_downloaded:
+                self.update_label.configure(text=f"[{self.items_downloaded + 1}/{self.download_amount}] 0%",
+                                            text_color=("gray10", "gray90"))
                 return
 
             timestamp = time.strftime("%H:%M:%S", time.localtime())
