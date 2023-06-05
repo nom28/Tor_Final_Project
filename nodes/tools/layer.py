@@ -20,14 +20,14 @@ class Layer:
         )
         self.public_key = self.private_key.public_key()
 
-    def store_keys(self, sufix):
+    def store_keys(self, dir):
         pem = self.private_key.private_bytes(
             encoding=serialization.Encoding.PEM,
             format=serialization.PrivateFormat.PKCS8,
             encryption_algorithm=serialization.NoEncryption()
         )
 
-        with open('keys\\private_key'+sufix+'.pem', 'wb') as f:
+        with open(dir+'private_key.pem', 'wb') as f:
             f.write(pem)
 
         pem = self.public_key.public_bytes(
@@ -35,19 +35,19 @@ class Layer:
             format=serialization.PublicFormat.SubjectPublicKeyInfo
         )
 
-        with open('keys\\public_key'+sufix+'.pem', 'wb') as f:
+        with open(dir+'public_key.pem', 'wb') as f:
             f.write(pem)
 
-    def change_keys(self, sufix, self_key):
+    def change_keys(self, prefix, suffix, self_key):
         if self_key:
-            with open('keys\\private_key' + sufix + '.pem', 'rb') as key_file:
+            with open(prefix + 'private_key' + suffix + '.pem', 'rb') as key_file:
                 self.private_key = serialization.load_pem_private_key(
                     key_file.read(),
                     password=None,
                     backend=default_backend()
                 )
         else:
-            with open('keys\\public_key' + sufix + '.pem', 'rb') as key_file:
+            with open(prefix + 'public_key' + suffix + '.pem', 'rb') as key_file:
                 self.public_key = serialization.load_pem_public_key(
                     key_file.read(),
                     backend=default_backend()

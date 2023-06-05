@@ -3,6 +3,7 @@ import pyotp
 
 
 class Database:
+    table = ("id INTEGER PRIMARY KEY AUTOINCREMENT", "hash TEXT", "tfa TEXT")
 
     def __init__(self):
         """
@@ -11,8 +12,7 @@ class Database:
         self.dbPath = 'database/users.db'
         self.con = lite.connect(self.dbPath)
         # for debugging
-        self.create_table_if_not_exists("users", (
-            "user_id INTEGER PRIMARY KEY AUTOINCREMENT", "email TEXT", "password TEXT", "secret TEXT", "admin INTEGER"))
+        self.create_table_if_not_exists("users", self.table)
         print(self.get_all_users())
         ######
 
@@ -51,7 +51,7 @@ class Database:
         """
         checking if data exists in the database
         :param name: str - table name
-        :param params - data to check if exists
+        :param params: data to check if exists
         :return: bool - exists or not
         """
 
@@ -61,92 +61,60 @@ class Database:
 
         return len(rows) != 0
 
-    def add_user(self, email, password, admin=False):
+    def add_user(self, h):
         """
         checking if the user can be added to the database and adding it
-        :param email: str - user email
-        :param password: str - user password
-        :param admin: bool - user admin or not
-        :return: bool/str - if added then secret str if not then False
+        :param h: str - user hash
+        :return: bool/tuple - if added then hash and 2FA tuple if not then False
         """
 
-        self.create_table_if_not_exists("users", (
-            "user_id INTEGER PRIMARY KEY AUTOINCREMENT", "email TEXT", "password TEXT", "secret TEXT", "admin INTEGER"))
+        self.create_table_if_not_exists("users", self.table)
 
-        if self.check_if_exists("users", (("email", f"'{email}'"),)):
+        if self.check_if_exists("users", (("hash", f"'{h}'"),)):
             return False
 
-        secret = pyotp.random_base32()
+        tfa = pyotp.random_base32()
 
-        self.query(f"INSERT INTO users(email, password, secret, admin) VALUES('{email}', '{password}', '{secret}', {str(1) if admin else str(0)})")
-        return secret
+        self.query(f"INSERT INTO users(hash, tfa) VALUES('{h}', '{tfa}')")
+        return tfa
 
-    def remove_user(self, email):
+    def remove_user(self, h):
         """
-        function that removes a user from the users table by the email
-        :param email: str - user email
+        function that removes a user from the users table by the hash
+        :param h: str - user hash
         :return: None
         """
-        self.create_table_if_not_exists("users", (
-            "user_id INTEGER PRIMARY KEY AUTOINCREMENT", "email TEXT", "password TEXT", "secret TEXT", "admin INTEGER"))
+        self.create_table_if_not_exists("users", self.table)
 
-        self.query(f"DELETE FROM users WHERE email='{email}'")
+        self.query(f"DELETE FROM users WHERE hash='{h}'")
 
-    def check_user_exists(self, email, password):
+    def check_user_exists(self, h):
         """
         function that checks if user exists in the database
-        :param email: str - user email
-        :param password: str - user password
+        :param h: str - user hash
         :return: bool - exists or not
         """
 
-        self.create_table_if_not_exists("users", (
-            "user_id INTEGER PRIMARY KEY AUTOINCREMENT", "email TEXT", "password TEXT", "secret TEXT", "admin INTEGER"))
+        self.create_table_if_not_exists("users", self.table)
 
-        return self.check_if_exists("users", (("email", f"'{email}'"), ("password", f"'{password}'")))
+        return self.check_if_exists("users", (("hash", f"'{h}'"), ))
 
-    def check_if_admin(self, email):
-        """
-        function that checks if user is admin in the database
-        :param email: str - user email
-        :return: bool - admin or not
-        """
-
-        user_row = self.get_user_by_email(email)
-        return user_row[4] == 1
-
-    def check_user_otp(self, email, otp):
-        user = self.get_user_by_email(email)
-        user_secret = user[3]
+    def check_user_otp(self, h, otp):
+        user = self.get_user_by_hash(h)
+        user_secret = user[2]
 
         totp = pyotp.TOTP(user_secret)
 
         return totp.verify(otp)
 
-    def change_admin_status(self, email):
+    def get_user_by_hash(self, h):
         """
-        function that changes the admin status of a user - admin -> not admin, and vice versa
-        :param email: str -
-        :return:
-        """
-
-        if not self.check_if_exists("users", (("email", f"'{email}'"),)):
-            return False
-
-        new_admin_value = "0" if self.check_if_admin(email) else "1"
-        print(new_admin_value)
-        self.query(f"UPDATE users SET admin={new_admin_value} WHERE email='{email}'")
-
-        return True
-
-    def get_user_by_email(self, email):
-        """
-        returning user row by email
-        :param email: str - user email
+        returning user row by hash
+        :param h: str - user hash
         :return: tuple - user row
         """
 
-        return self.query(f"SELECT * FROM users WHERE email='{email}'")[0]
+        return self.query(f"SELECT * FROM users WHERE hash='{h}'")[0]
 
     def get_all_users(self):
         """
@@ -155,6 +123,7 @@ class Database:
         """
 
         return self.query(f"SELECT * FROM users")
+
 
 if __name__ == '__main__':
     db = Database()

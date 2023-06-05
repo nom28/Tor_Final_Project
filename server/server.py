@@ -5,6 +5,7 @@ from cryptography.utils import CryptographyDeprecationWarning
 from threading import Thread
 import time
 from queue import Queue, Empty
+import secrets
 
 import tools.toolbox as tb
 from database.database import Database
@@ -26,7 +27,7 @@ sessions = {}
 conversations = {}
 buffer = 0
 personal_port = 55559
-_id = 1
+_id = 40000
 
 db = Database()
 fragmented_packets = {}
@@ -51,7 +52,7 @@ def threaded_sniff_with_send():
 
 def sniff_loopback(q):
     # loop back interface - iface="Software Loopback Interface 1"
-    sniff(prn=lambda x: q.put(x), filter=f"tcp and dst port {personal_port}", iface=[tb.loopback_interface, tb.main_interface])
+    sniff(prn=lambda x: q.put(x), filter=f"tcp", iface=[tb.loopback_interface, tb.main_interface])
 
 
 def defragment_packets(packet):
@@ -85,6 +86,8 @@ def process_packet(packet):
 
     if TCP not in packet:
         return
+    if packet[TCP].dport != personal_port:
+        return
     if packet[TCP].ack == 1:
         print("ack")
         return
@@ -99,6 +102,7 @@ def process_packet(packet):
         else:
             data = pickle.loads(load[1:])
             buffer = data[0]
+            print("buffer:", buffer)
             conversations[key] = [b"", buffer, data[1]]
         return
     if code == b"D":
@@ -110,29 +114,37 @@ def process_packet(packet):
         signin(key, load[1:])
     if code == b"S":
         signup(key, load[1:])
+    if code == b"B":
+        print(load[1:])
+        time.sleep(1)  # This is temporary: client needs a moment to start up!
+        reply(b"great", b'\xf2\xee\x07', key)
 
 
 def signin(key, user):
-    email, password, auth = pickle.loads(user)
-    if not db.check_user_exists(email, password):
-        reply(b"Email or password incorrect", b'\xd3\xb6\xad', key)
+    h, auth = pickle.loads(user)
+    if not db.check_user_exists(h):
+        reply(b"Hash incorrect", b'\xd3\xb6\xad', key)
         return
-    if not db.check_user_otp(email, auth):
+    if not db.check_user_otp(h, auth):
         reply(b"Auth incorrect", b'\xd3\xb6\xad', key)
         return
     reply(b"sign in successful", b'\xc6\xbd\x06', key)
-    sessions[key] = db.get_user_by_email(email)[0]
+    sessions[key] = db.get_user_by_hash(h)[0]
     print(sessions)
 
 
 def signup(key, user):
-    email, password = pickle.loads(user)
-    result = db.add_user(email, password)
+    alphabet = string.ascii_letters + string.digits
+    random_hash = ''.join(secrets.choice(alphabet) for _ in range(10))
+
+    result = db.add_user(random_hash)
+    print(result)
+    print(db.get_all_users())
     if result:
-        reply(result.encode('utf-8'), b'\x9d\xf6\x9e', key)
-        sessions[key] = db.get_user_by_email(email)[0]
+        sessions[key] = db.get_user_by_hash(random_hash)[0]
         print(sessions)
         os.mkdir(f"server_files/f{sessions[key]}")
+        reply(pickle.dumps((random_hash, result)), b'\x9d\xf6\x9e', key)
     else:
         reply(b"User already exists", b'\xd3\xb6\xad', key)
 
@@ -204,19 +216,19 @@ def reply(data, code_prefix, key):
     global _id
     dst, dport = key.split("#")
     dport = int(dport)
-    crop_len = 1400
+    crop_len = 12797
     while len(data) > 0:
         if len(data) > crop_len:
             sendable_data = code_prefix + data[:crop_len]
             packet = IP(dst=dst, id=_id) / TCP(dport=dport, sport=personal_port) / Raw(sendable_data)
             _id += 1
-            send(packet)
+            send(fragment(packet, fragsize=1400))
             data = data[crop_len:]
         else:
             sendable_data = code_prefix + data
             packet = IP(dst=dst, id=_id) / TCP(dport=dport, sport=personal_port) / Raw(sendable_data)
             _id += 1
-            send(packet)
+            send(fragment(packet, fragsize=1400))
             break
 
 
