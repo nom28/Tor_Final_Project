@@ -274,22 +274,6 @@ def reply(data, code_prefix, key):
             break
 
 
-# only for pictures
-"""if d == b"DONE":
-    with open("newpicture.jpg", "wb") as picture:
-        picture.write(data)
-else:
-    data = data + d"""
-
-
-"""
-def decrypt_packet(data):
-    decrypted_data = layer3.decrypt(layer2.decrypt(layer1.decrypt(data)))
-    print(decrypted_data)
-    return decrypted_data
-"""
-
-
 def list_from_iter(iter):
     l = []
     for i in iter:

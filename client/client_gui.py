@@ -327,6 +327,12 @@ class App(customtkinter.CTk):
         # this includes an if statement to remove any directories
         files = [f for f in os.listdir(self.local_dir) if os.path.isfile(os.path.join(self.local_dir, f))]
         variables = []
+
+        # Destroy previous lines
+        for widget in self.scrollable_frame_1.winfo_children():
+            widget.destroy()
+
+        # Apply new lines
         for i, file in enumerate(files):
             variables.append(customtkinter.StringVar(value="off"))
             checkbox = customtkinter.CTkCheckBox(self.scrollable_frame_1, text=file, variable=variables[i],
@@ -400,6 +406,12 @@ class App(customtkinter.CTk):
     def file_list(self, data):
         files = eval(data)
         variables = []
+
+        # Destroy previous lines
+        for widget in self.scrollable_frame_2.winfo_children():
+            widget.destroy()
+
+        # Apply new lines
         for i, file in enumerate(files):
             variables.append(customtkinter.StringVar(value="off"))
             checkbox = customtkinter.CTkCheckBox(self.scrollable_frame_2, text=file, variable=variables[i],

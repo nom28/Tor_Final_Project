@@ -53,13 +53,13 @@ class Layer:
                     backend=default_backend()
                 )
 
-    def encrypt(self, data, session_id=b"", ip="127.0.0.1", port="55556"):
+    def encrypt(self, data, ip="127.0.0.1", port="55556"):
         # could be possible to move data in heading to the payload.
         self.f = Fernet(self.key)
         encrypted_data = self.f.encrypt(data)
 
         hex_ip = self.ip_to_hex(ip).encode('utf-8')
-        heading = self.key+hex_ip+port.encode('utf-8')+session_id
+        heading = self.key+hex_ip+port.encode('utf-8')
 
         encrypted_heading = self.public_key.encrypt(
             heading,
@@ -91,53 +91,9 @@ class Layer:
 
         return product
 
-    def b_encrypt(self, data, session_id=b""):
-        # could be possible to move data in heading to the payload.
-        self.f = Fernet(self.key)
-        encrypted_data = self.f.encrypt(data)
-
-        heading = self.key+session_id
-
-        encrypted_heading = self.public_key.encrypt(
-            heading,
-            padding.OAEP(
-                mgf=padding.MGF1(algorithm=hashes.SHA256()),
-                algorithm=hashes.SHA256(),
-                label=None
-            )
-        )
-        product = encrypted_heading + encrypted_data
-
-        return product
-
-    def decrypt(self, encrypted_data):
-        encrypted_heading = encrypted_data[:256]
-        decrypted_heading = self.private_key.decrypt(
-            encrypted_heading,
-            padding.OAEP(
-                mgf=padding.MGF1(algorithm=hashes.SHA256()),
-                algorithm=hashes.SHA256(),
-                label=None
-            )
-        )
-        decrypted_key = decrypted_heading[:44]
-        decrypted_heading = decrypted_heading[44:]
-
-        decrypted_ip = self.hex_to_ip(decrypted_heading[:8])
-        decrypted_heading = decrypted_heading[8:]
-
-        decrypted_port = int(decrypted_heading[:5])
-        decrypted_heading = decrypted_heading[5:]
-
-        decrypted_session_id = decrypted_heading
-
-        encrypted_data = encrypted_data[256:]
-        f = Fernet(decrypted_key)
-        return [decrypted_ip, decrypted_port, decrypted_session_id, f.decrypt(encrypted_data)]
-
     def b_decrypt(self, encrypted_data):
         encrypted_heading = encrypted_data[:256]
-        decrypted_heading = self.private_key.decrypt(
+        decrypted_key = self.private_key.decrypt(
             encrypted_heading,
             padding.OAEP(
                 mgf=padding.MGF1(algorithm=hashes.SHA256()),
@@ -145,16 +101,12 @@ class Layer:
                 label=None
             )
         )
-        decrypted_key = decrypted_heading[:44]
-        decrypted_heading = decrypted_heading[44:]
-
-        decrypted_session_id = decrypted_heading
 
         encrypted_data = encrypted_data[256:]
         f = Fernet(decrypted_key)
         print(decrypted_key)
         print(encrypted_data)
-        return [decrypted_session_id, f.decrypt(encrypted_data)]
+        return f.decrypt(encrypted_data)
 
     @staticmethod
     def ip_to_hex(ip):
@@ -171,10 +123,26 @@ class Layer:
 
 
 if __name__ == '__main__':
-    l = Layer()
-    session_id = random.randbytes(20)
+    s = b"abcdefghijklmnop"
+    key = Fernet.generate_key()
+    f = Fernet(key)
 
-    x = l.encrypt(b"hey sir", session_id)
-    # x = l.encrypt(b":)", "255.255.255.255", "00080")
-    result = l.decrypt(x)
-    print(result)
+    private_key = rsa.generate_private_key(
+        public_exponent=65537,
+        key_size=2048,
+        backend=default_backend()
+    )
+    public_key = private_key.public_key()
+
+    t1 = f.encrypt(s)
+    print(len(t1))
+
+    t2 = public_key.encrypt(
+        s,
+        padding.OAEP(
+            mgf=padding.MGF1(algorithm=hashes.SHA256()),
+            algorithm=hashes.SHA256(),
+            label=None
+        )
+    )
+    print(len(t2))

@@ -93,9 +93,9 @@ class Client:
 
         # This is now done in a dumb way since server does not encrypt YET
         encrypted_data = self.layerS.server_encrypt(b'B'+data)
-        encrypted_data = self.layer3.encrypt(data+encrypted_data, self.session_id, self.addresses[4][0], str(self.addresses[4][1]))
-        encrypted_data = self.layer2.encrypt(data+encrypted_data, self.session_id, self.addresses[3][0], str(self.addresses[3][1]))
-        encrypted_data = self.layer1.encrypt(data+encrypted_data, self.session_id, self.addresses[2][0], str(self.addresses[2][1]))
+        encrypted_data = self.layer3.encrypt(data+encrypted_data, self.addresses[4][0], str(self.addresses[4][1]))
+        encrypted_data = self.layer2.encrypt(data+encrypted_data, self.addresses[3][0], str(self.addresses[3][1]))
+        encrypted_data = self.layer1.encrypt(data+encrypted_data, self.addresses[2][0], str(self.addresses[2][1]))
 
         packet = IP(dst=self.addresses[1][0], id=self._id) / TCP(dport=self.addresses[1][1],
                                                                  sport=self.personal_port) / Raw(encrypted_data)
@@ -104,7 +104,7 @@ class Client:
 
     def sniffer(self, d):
         print("initiating sniffer")
-        sniffer = Thread(target=self.sniff_loopback)
+        sniffer = Thread(target=self._sniff)
         sniffer.daemon = True
         sniffer.start()
         time.sleep(0.001)  # just to make sure the sniffer doesn't override with future scapy functions.
@@ -121,7 +121,7 @@ class Client:
                 # do not really understand why this is needed, but does not print all packets if not.
                 time.sleep(0)
 
-    def sniff_loopback(self):
+    def _sniff(self):
         sniff(prn=lambda x: self.q.put(x), filter=f"tcp", iface=[tb.loopback_interface, tb.main_interface])
 
     def defragment_packets(self, packet, d):
@@ -157,7 +157,7 @@ class Client:
             return
         # pkt.show()
         data = self.decrypt_packet(pkt.load)
-        d.put(data[1])  # [0] is session key
+        d.put(data)
 
     def send(self, data, code_prefix):
         while len(data) > 0:
@@ -179,16 +179,16 @@ class Client:
 
     def full_encrypt(self, data):
         encrypted_data = self.layerS.server_encrypt(data)
-        encrypted_data = self.layer3.encrypt(encrypted_data, self.session_id, self.addresses[4][0], str(self.addresses[4][1]))
-        encrypted_data = self.layer2.encrypt(encrypted_data, self.session_id, self.addresses[3][0], str(self.addresses[3][1]))
-        encrypted_data = self.layer1.encrypt(encrypted_data, self.session_id, self.addresses[2][0], str(self.addresses[2][1]))
+        encrypted_data = self.layer3.encrypt(encrypted_data, self.addresses[4][0], str(self.addresses[4][1]))
+        encrypted_data = self.layer2.encrypt(encrypted_data, self.addresses[3][0], str(self.addresses[3][1]))
+        encrypted_data = self.layer1.encrypt(encrypted_data, self.addresses[2][0], str(self.addresses[2][1]))
         return encrypted_data
 
     def decrypt_packet(self, data):
         decrypted_data = self.layer0.b_decrypt(data)
-        decrypted_data = self.layer0.b_decrypt(decrypted_data[1])
-        decrypted_data = self.layer0.b_decrypt(decrypted_data[1])
-        decrypted_data = self.layer0.b_decrypt(decrypted_data[1])
+        decrypted_data = self.layer0.b_decrypt(decrypted_data)
+        decrypted_data = self.layer0.b_decrypt(decrypted_data)
+        decrypted_data = self.layer0.b_decrypt(decrypted_data)
         return decrypted_data
 
 
