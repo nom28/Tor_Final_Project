@@ -1,14 +1,10 @@
-import warnings
-from cryptography.utils import CryptographyDeprecationWarning
 from queue import *
 import pickle
+import socket
+from threading import Thread
 
 from tools.layer import Layer
 import tools.toolbox as tb
-
-warnings.filterwarnings("ignore", category=CryptographyDeprecationWarning)
-from scapy.all import *
-from scapy.layers.inet import *
 
 
 class Client:
@@ -18,39 +14,34 @@ class Client:
     layer3 = Layer()
     layerS = Layer()
     q = Queue()
+    ready_q = Queue()
 
-    session_id = random.randbytes(20)
+    main_socket = None
+
     ip = None
     personal_port = 55555
     finished = False
-    fragmented_packets = {}
     addresses = None
 
-    _id = 1
-
-    test_send_data = b"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+-="*300
-
     def __init__(self):
-        # self.layer0.change_keys("0", True)
         self.layer0.store_keys("0")
+        self.find_my_ip()
         ds_ip = "10.0.0.24"
         self.boot(ds_ip, 55677)
-        # self.layer1.change_keys("1", False)
-        # self.layer2.change_keys("2", False)
-        # self.layer3.change_keys("3", False)
 
-    def boot(self, HOST, PORT):
+    def find_my_ip(self):
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         s.connect(('8.8.8.8', 80))
         nat_ip_address = s.getsockname()[0]
         s.close()
         self.ip = nat_ip_address
 
+    def boot(self, HOST, PORT):
         client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        client_socket.bind((nat_ip_address, self.personal_port))
+        client_socket.bind((self.ip, self.personal_port))
         client_socket.connect((HOST, PORT))
 
-        message = b"C" + pickle.dumps((nat_ip_address, self.personal_port, "CONNECTING", (tb.server_ip, 55559)))
+        message = b"C" + pickle.dumps((self.ip, self.personal_port, "CONNECTING", (tb.server_ip, 55559)))
 
         client_socket.send(message)
         response = client_socket.recv(2048)
@@ -61,7 +52,7 @@ class Client:
             exit()
 
         response = pickle.loads(response)
-        self.addresses = ((nat_ip_address, 55555),
+        self.addresses = ((self.ip, 55555),
                           (response[0][0], response[0][1]),
                           (response[1][0], response[1][1]),
                           (response[2][0], response[2][1]),
@@ -88,6 +79,8 @@ class Client:
         self.set_up_route()
 
     def set_up_route(self):
+        self.sniffer()
+
         with open("keys/public_key0.pem", "rb") as pk:
             data = pk.read()
 
@@ -97,85 +90,35 @@ class Client:
         encrypted_data = self.layer2.encrypt(data+encrypted_data, self.addresses[3][0], str(self.addresses[3][1]))
         encrypted_data = self.layer1.encrypt(data+encrypted_data, self.addresses[2][0], str(self.addresses[2][1]))
 
-        packet = IP(dst=self.addresses[1][0], id=self._id) / TCP(dport=self.addresses[1][1],
-                                                                 sport=self.personal_port) / Raw(encrypted_data)
-        self._id += 1
-        send(fragment(packet, fragsize=1400))
+        self.main_socket.sendall(str(len(encrypted_data)).zfill(10).encode() + encrypted_data)
 
-    def sniffer(self, d):
+    def sniffer(self):
+        self.main_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.main_socket.connect(self.addresses[1])
+
         print("initiating sniffer")
-        sniffer = Thread(target=self._sniff)
+        sniffer = Thread(target=self.receive_messages)
         sniffer.daemon = True
         sniffer.start()
-        time.sleep(0.001)  # just to make sure the sniffer doesn't override with future scapy functions.
         print("sniffer initiated - listening")
 
-        while not self.finished:
-            if not self.q.empty():
-                try:
-                    pkt = self.q.get()
-                    self.defragment_packets(pkt, d)
-                except AttributeError:
-                    raise
-            else:
-                # do not really understand why this is needed, but does not print all packets if not.
-                time.sleep(0)
-
-    def _sniff(self):
-        sniff(prn=lambda x: self.q.put(x), filter=f"tcp", iface=[tb.loopback_interface, tb.main_interface])
-
-    def defragment_packets(self, packet, d):
-        if packet.haslayer(IP):
-            ip = packet[IP]
-            if ip.flags == 1:  # Fragmentation flag is set
-                if tb.stringify([ip.id, ip.src]) not in self.fragmented_packets:
-                    self.fragmented_packets[tb.stringify([ip.id, ip.src])] = [packet]
-                else:
-                    print("frag:", packet[IP].frag)
-                    self.fragmented_packets[tb.stringify([ip.id, ip.src])].append(packet)
-            elif ip.flags == 0 and tb.stringify([ip.id, ip.src]) in self.fragmented_packets:  # Last fragment
-                self.fragmented_packets[tb.stringify([ip.id, ip.src])].append(packet)
-                fragments = self.fragmented_packets.pop(tb.stringify([ip.id, ip.src]))
-                fragments = sorted(fragments, key=lambda x: x[IP].frag)
-                full_packet = fragments[0]
-                payload = b''
-                print("----")
-                for fragment in fragments:  # Sort fragments by offset
-                    print(fragment)
-                    payload += fragment.load
-                full_packet.load = payload
-                self.process_packet(full_packet, d)
-            else:
-                self.process_packet(packet, d)
-
-    def process_packet(self, pkt, d):
-        if TCP not in pkt:
-            return
-        if pkt[TCP].ack == 1:
-            return
-        if pkt[TCP].dport != self.personal_port:
-            return
-        # pkt.show()
-        data = self.decrypt_packet(pkt.load)
-        d.put(data)
+    def receive_messages(self):
+        while True:
+            try:
+                data = self.recv_all()
+                if data[1]:
+                    data = self.decrypt_packet(data[0])
+                    self.ready_q.put(data)
+            except socket.error as e:
+                print("Socket error:", e)
+                break
 
     def send(self, data, code_prefix):
-        while len(data) > 0:
-            # time.sleep(0.1)
-            print("sending")
-            crop_len = 10239  # 10240 - 1 (code prefix)
-            if len(data) > crop_len:
-                encrypted_data = self.full_encrypt(code_prefix + data[:crop_len])
-                packet = IP(dst=self.addresses[1][0], id=self._id) / TCP(dport=self.addresses[1][1], sport=self.personal_port) / Raw(encrypted_data)
-                self._id += 1
-                send(fragment(packet, fragsize=1400))
-                data = data[crop_len:]
-            else:
-                encrypted_data = self.full_encrypt(code_prefix + data)
-                packet = IP(dst=self.addresses[1][0], id=self._id) / TCP(dport=self.addresses[1][1], sport=self.personal_port) / Raw(encrypted_data)
-                self._id += 1
-                send(fragment(packet, fragsize=1400))
-                break
+        data = code_prefix + data
+        encrypted_data = self.full_encrypt(data)
+        print(str(len(encrypted_data)).zfill(10).encode())
+        print(encrypted_data)
+        self.main_socket.sendall(str(len(encrypted_data)).zfill(10).encode() + encrypted_data)
 
     def full_encrypt(self, data):
         encrypted_data = self.layerS.server_encrypt(data)
@@ -191,6 +134,32 @@ class Client:
         decrypted_data = self.layer0.b_decrypt(decrypted_data)
         return decrypted_data
 
+    def recv_all(self):
+        try:
+            msg_size = self.main_socket.recv(10)
+        except:
+            return "recv error", False
+        if not msg_size:
+            return "msg length error", False
+        try:
+            msg_size = int(msg_size)
+            print(msg_size)
+        except:  # not an integer
+            return "msg length error", False
+
+        msg = b''
+        # this is a fail - safe -> if the recv not giving the msg in one time
+        while len(msg) < msg_size:
+            try:
+                msg_fragment = self.main_socket.recv(msg_size - len(msg))
+            except:
+                return "recv error", False
+            if not msg_fragment:
+                return "msg data is none", False
+            msg = msg + msg_fragment
+        print(len(msg))
+        return msg, True
+
 
 if __name__ == '__main__':
     """if len(sys.argv) > 1:
@@ -199,4 +168,3 @@ if __name__ == '__main__':
         self.ports[3] = int(sys.argv[3])"""
     print("client started")
     c = Client()
-    c.sniffer()
