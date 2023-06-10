@@ -15,7 +15,6 @@ import tools.toolbox as tb
 
 class App(customtkinter.CTk):
     c = Client()
-    incoming_msgs = queue.Queue()
     local_dir = ""
     loggedin = False
 
@@ -242,15 +241,11 @@ class App(customtkinter.CTk):
         analyzer.daemon = True
         analyzer.start()
 
-        sniffer = Thread(target=self.c.sniffer, args=(self.incoming_msgs,))
-        sniffer.daemon = True
-        sniffer.start()
-
     def analyzer(self):
         while True:
-            if not self.incoming_msgs.empty():
+            if not self.c.ready_q.empty():
                 try:
-                    d = self.incoming_msgs.get()
+                    d = self.c.ready_q.get()
                     key = d[:3]
                     data = d[3:]
                     print(data)
@@ -353,7 +348,7 @@ class App(customtkinter.CTk):
             with open(self.local_dir+"/"+file, "rb") as i:
                 data = i.read()
                 # print("length:", len(data))
-                self.c.send(pickle.dumps([len(data), file]), b"U")  # [size, name + type]
+                self.c.send(file.encode(), b"U")
                 self.c.send(data, b"U")
 
     def upload_complete(self, msg):
@@ -433,39 +428,26 @@ class App(customtkinter.CTk):
         self.c.send(str(relevant_files).encode('utf-8'), b"D")
 
     def download_save(self, data):
-        if self.buffer:
+        if self.designated_file_name:
             self.save(data)
         else:
-            data = pickle.loads(data)
-            self.buffer = data[0]
-            self.designated_file_name = data[1]
-            print("buffer:", self.buffer)
-        return
+            self.designated_file_name = data.decode()
 
     def save(self, data):
-        self.temp_mem += data
-        self.buffer -= len(data)
-        percentage = (len(self.temp_mem) / (len(self.temp_mem) + self.buffer)) * 100
-        self.update_label.configure(text=f"[{self.items_downloaded + 1}/{self.download_amount}] {percentage}%",
-                                    text_color=("gray10", "gray90"))
+        with open(f"{self.local_dir}/{self.designated_file_name}", "wb") as i:
+            i.write(data)
 
-        if self.buffer <= 0:
-            with open(f"{self.local_dir}/{self.designated_file_name}", "wb") as i:
-                i.write(self.temp_mem)
+        self.items_downloaded += 1
+        print("download amount left:", self.download_amount - self.items_downloaded)
+        self.designated_file_name = ""
 
-            self.items_downloaded += 1
-            print("download amount left:", self.download_amount - self.items_downloaded)
-            self.buffer = 0
-            self.designated_file_name = ""
-            self.temp_mem = b''
+        if self.download_amount != self.items_downloaded:
+            self.update_label.configure(text=f"[{self.items_downloaded + 1}/{self.download_amount}]",
+                                        text_color=("gray10", "gray90"))
+            return
 
-            if self.download_amount != self.items_downloaded:
-                self.update_label.configure(text=f"[{self.items_downloaded + 1}/{self.download_amount}] 0%",
-                                            text_color=("gray10", "gray90"))
-                return
-
-            timestamp = time.strftime("%H:%M:%S", time.localtime())
-            self.update_label.configure(text=f"[{timestamp}] Download finished", text_color=("gray10", "gray90"))
+        timestamp = time.strftime("%H:%M:%S", time.localtime())
+        self.update_label.configure(text=f"[{timestamp}] Download finished", text_color=("gray10", "gray90"))
 
 
 if __name__ == "__main__":

@@ -1,8 +1,6 @@
-import warnings
 import pickle
-
-import win32print
-from cryptography.utils import CryptographyDeprecationWarning
+import socket
+import sys
 from threading import Thread
 import time
 from queue import Queue, Empty
@@ -11,10 +9,6 @@ import atexit
 from tools.layer import Layer
 from tools.bidict import BiDict
 import tools.toolbox as tb
-
-warnings.filterwarnings("ignore", category=CryptographyDeprecationWarning)
-from scapy.all import *
-from scapy.layers.inet import *
 
 
 # CLIENT KEY - temporary
@@ -25,22 +19,28 @@ node_layer = Layer()
 key_dir = ""
 
 finished = False
-prev_addr_to_ports = BiDict()
+sockA_to_sockB = BiDict()
 fragmented_packets = {}
-_id = 1
+ip = None
 
 
-def disconnect(HOST, PORT):
+def find_my_ip():
+    global ip
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     s.connect(('8.8.8.8', 80))
     nat_ip_address = s.getsockname()[0]
     s.close()
+    ip = nat_ip_address
+
+
+def disconnect(HOST, PORT):
+    global ip
 
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    client_socket.bind((nat_ip_address, personal_port))
+    client_socket.bind((ip, personal_port))
     client_socket.connect((HOST, PORT))
 
-    message = b"N" + pickle.dumps((nat_ip_address, personal_port, "DISCONNECTING"))
+    message = b"N" + pickle.dumps((ip, personal_port, "DISCONNECTING"))
 
     client_socket.send(message)
     response = client_socket.recv(1024).decode('utf-8')
@@ -54,20 +54,17 @@ def disconnect(HOST, PORT):
 
 
 def boot(HOST, PORT):
+    find_my_ip()
+
     node_layer.store_keys(key_dir)
     with open(key_dir+"public_key.pem", "r") as k:
         pk = k.read()
 
-    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    s.connect(('8.8.8.8', 80))
-    nat_ip_address = s.getsockname()[0]
-    s.close()
-
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    client_socket.bind((nat_ip_address, personal_port))
+    client_socket.bind((ip, personal_port))
     client_socket.connect((HOST, PORT))
 
-    message = b"N" + pickle.dumps((nat_ip_address, personal_port, "CONNECTING", pk))
+    message = b"N" + pickle.dumps((ip, personal_port, "CONNECTING", pk))
 
     client_socket.send(message)
     response = client_socket.recv(1024).decode('utf-8')
@@ -80,97 +77,85 @@ def boot(HOST, PORT):
 
 
 def packet_handle():
-    q = Queue()
+    global ip
 
-    print("initiating sniffer")
-    sniffer = Thread(target=sniff_loopback, args=(q,))
-    sniffer.daemon = True
-    sniffer.start()
-    time.sleep(1)  # just to make sure the sniffer doesn't override with future scapy functions.
-    print("sniffer initiated - listening")
+    server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-    while not finished:
-        if not q.empty():
-            pkt = q.get(timeout=1)
-            defragment_packets(pkt)
-        else:
-            time.sleep(0)
+    server_address = (ip, personal_port)
+    server_socket.bind(server_address)
 
+    server_socket.listen(5)
+    print("Server is listening on", server_address)
 
-def defragment_packets(packet):
-    global fragmented_packets
-    if not packet.haslayer(IP):
-        return
-    ip = packet[IP]
-    if ip.flags == 1:  # Fragmentation flag is set
-        if tb.stringify([ip.id, ip.src]) not in fragmented_packets:
-            fragmented_packets[tb.stringify([ip.id, ip.src])] = [packet]
-        else:
-            fragmented_packets[tb.stringify([ip.id, ip.src])].append(packet)
-    elif ip.flags == 0 and tb.stringify([ip.id, ip.src]) in fragmented_packets:  # Last fragment
-        fragmented_packets[tb.stringify([ip.id, ip.src])].append(packet)
+    while True:
+        client_socket, client_address = server_socket.accept()
 
-        fragments = fragmented_packets.pop(tb.stringify([ip.id, ip.src]))
-        fragments = sorted(fragments, key=lambda x: x[IP].frag)
-        full_packet = fragments[0]
-        payload = b''
-        for fragment in fragments:  # Sort fragments by offset
-            payload += fragment.load
-        full_packet.load = payload
-
-        full_packet[IP].flags = 0
-
-        process_packet(full_packet)
-    else:
-        process_packet(packet)
+        # Create a thread to handle the client
+        client_thread = Thread(target=handle_client, args=(client_socket, client_address))
+        client_thread.start()
 
 
-def process_packet(pkt):
-    global start_port
-    global prev_addr_to_ports
-    # Checks if is a data TCP packet
-    if TCP not in pkt:
-        return
-    if pkt[TCP].flags.R:
-        return
-    if pkt[TCP].flags.A:
-        return
-    dport = pkt[TCP].dport
-    sport = pkt[TCP].sport
-    src = pkt[IP].src
-    src_address = tb.stringify([src, sport])
+def handle_client(client_socket, client_address, mode="CTS"):
+    if mode == "CTS":
+        print("Connected:", client_address)
 
-    if dport == personal_port:
-        if not prev_addr_to_ports.has_this_key(src_address):  # If this is the first message then add it to the dict
-            available_port = tb.find_next_available_port(start_port)
-            start_port += 1
-            prev_addr_to_ports.add(src_address, available_port)
+    while True:
+        data = recv_all(client_socket)
+        if not data[1]:
+            print(data[0])
+            break
+        data = data[0]
+        if not data:
+            break
+        process_data(data, client_socket, client_address, mode)
 
-            set_up_route(pkt, src_address)
+    client_socket.close()
+    if mode == "CTS":
+        print("Disconnected:", client_address)
+
+
+def process_data(data, client_socket, client_address, mode):
+    global sockA_to_sockB
+
+    if mode == "CTS":
+        data = decrypt_packet(data)
+        _ip, _port, data = data
+
+        if not sockA_to_sockB.has_this_key(client_socket):  # If this is the first message then add it to the dict
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.connect((_ip, _port))
+            sockA_to_sockB.add(client_socket, sock)
+
+            client_thread = Thread(target=handle_client, args=(sock, sock.getsockname(), "STC"))
+            client_thread.start()
+
+            set_up_route(data, sock, client_address)
             return
 
-        pkt = decrypt_packet(pkt.load)
+        print(f"{key_num}-->{_ip}:{_port}")
+        send_data(data, sockA_to_sockB.get_value(client_socket))
+    elif mode == "STC":
+        if not sockA_to_sockB.has_this_value(client_socket):
+            print("???")
+            exit()
 
-        ip, port, data = pkt
-        print(f"{key_num}-->{ip}:{port}")
-        send_data(data, ip, port, prev_addr_to_ports.get_value(src_address))
-    elif prev_addr_to_ports.has_this_value(dport):
-        ip, port = eval(prev_addr_to_ports.get_key(dport))
-        print(f"{ip}:{port}<--{key_num}")
-        data = encrypt_packet(pkt.load, prev_addr_to_ports.get_key(dport))
-        send_data(data, ip, int(port), personal_port)
+        sock = sockA_to_sockB.get_key(client_socket)
+        peername = sock.getpeername()
+        _ip, _port = peername
+        print(f"{_ip}:{_port}<--{key_num}")
+        print(sock.getpeername())
+        data = encrypt_packet(data, peername)
+        send_data(data, sock)
 
 
-def set_up_route(pkt, src_address):
-    pkt = decrypt_packet(pkt.load)
-    ip, port, data = pkt
+def set_up_route(data, sock, src_address):
     pk = data[:451]
     data = data[451:]
 
     with open(key_dir+f"public_key{src_address}".replace(".", "_") + ".pem", "wb") as k:
         k.write(pk)
 
-    send_data(data, ip, port, prev_addr_to_ports.get_value(src_address))
+    send_data(data, sock)
 
 
 # "Software Loopback Interface 1"
@@ -189,13 +174,40 @@ def encrypt_packet(data, src_address):
     return encrypted_data
 
 
-def send_data(data, ip, port, cport):
-    global _id
-    packet = IP(dst=ip, id=_id) / TCP(dport=port, sport=cport) / Raw(data)
-    _id += 1
-    a = fragment(packet, fragsize=1400)
-    print(packet.load)
-    send(a)
+def send_data(data, sock):
+    print(str(len(data)).zfill(10).encode())
+    sock.sendall(str(len(data)).zfill(10).encode() + data)
+
+
+def recv_all(sock):
+    """
+    function that receive data from socket by the wanted format
+    :param sock: socket
+    :return: tuple - (msg/error - str, status(True for ok, False for error))
+    """
+    try:
+        msg_size = sock.recv(10)
+    except:
+        return "recv error", False
+    if not msg_size:
+        return "msg length error1", False
+    try:
+        msg_size = int(msg_size)
+    except:  # not an integer
+        return "msg length error2", False
+
+    msg = b''
+    # this is a fail - safe -> if the recv not giving the msg in one time
+    while len(msg) < msg_size:
+        try:
+            msg_fragment = sock.recv(msg_size - len(msg))
+        except:
+            return "recv error", False
+        if not msg_fragment:
+            return "msg data is none", False
+        msg = msg + msg_fragment
+
+    return msg, True
 
 
 if __name__ == '__main__':
@@ -203,8 +215,6 @@ if __name__ == '__main__':
         personal_port = int(sys.argv[1])
         start_port = int(sys.argv[2])
         key_num = sys.argv[3]
-        _id *= int(key_num)
-
         key_dir = f"keys/keys{key_num}/"
         # node_layer.change_keys(key_num, True)
 
