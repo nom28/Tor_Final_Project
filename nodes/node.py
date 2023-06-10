@@ -158,11 +158,6 @@ def set_up_route(data, sock, src_address):
     send_data(data, sock)
 
 
-# "Software Loopback Interface 1"
-def sniff_loopback(q):
-    sniff(prn=lambda x: q.put(x), filter="tcp", iface=[tb.loopback_interface, tb.main_interface])
-
-
 def decrypt_packet(data):
     decrypted_data = node_layer.decrypt(data)
     return decrypted_data

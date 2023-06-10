@@ -6,6 +6,7 @@ from queue import Queue, Empty
 import secrets
 import sys
 import socket
+import string
 
 import tools.toolbox as tb
 from tools.layer import Layer
