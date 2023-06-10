@@ -165,13 +165,13 @@ class App(customtkinter.CTk):
         self.info_label = customtkinter.CTkLabel(self.home_info, text="Home - Info", font=("Arial", 18))
         self.info_label.grid(row=0, column=0, padx=20, pady=20)
 
-        self.auth_label = customtkinter.CTkLabel(self.home_info, text="", font=("Arial", 16), text_color="red")
-        self.auth_label.grid(row=1, column=0, padx=20, pady=20, sticky="w")
+        self.auth_label = customtkinter.CTkLabel(self.home_info, text="", font=("Arial", 14), text_color="#2E86C1")
+        self.auth_label.grid(row=1, column=0, padx=10, pady=10)
 
         with open("client_files/info.txt", "r") as i:
             info = i.read()
-        self.info_block_label = customtkinter.CTkLabel(self.home_info, text=info)
-        self.info_block_label.grid(row=2, column=0, padx=20, pady=20, sticky="w")
+        self.info_block_label = customtkinter.CTkLabel(self.home_info, text=info, font=("Arial", 14))
+        self.info_block_label.grid(row=2, column=0, padx=20, pady=20)
 
         # create second frame
         self.second_frame = customtkinter.CTkFrame(self, corner_radius=0, fg_color="transparent")
@@ -263,17 +263,17 @@ class App(customtkinter.CTk):
     def _update_label(self, msg):
         print("updated label")
         timestamp = time.strftime("%H:%M:%S", time.localtime())
-        self.update_label.configure(text=f"[{timestamp}] {str(msg)}", text_color=("gray10", "gray90"))
+        self.update_label.configure(text=f"[{timestamp}] {msg.decode('utf-8')}", text_color=("gray10", "gray90"))
 
     def error_update(self, msg):
         timestamp = time.strftime("%H:%M:%S", time.localtime())
-        self.update_label.configure(text=f"[{timestamp}] {str(msg)}", text_color="red")
+        self.update_label.configure(text=f"[{timestamp}] {msg.decode('utf-8')}", text_color="red")
 
     def signup_successful(self, msg):
         h, tfa = pickle.loads(msg)
         self.loggedin = True
         self.update_label.configure(text="")
-        self.auth_label.configure(text=f"Your User Hash:\n{str(h)}\nYour 2FA key:\n{str(tfa)}\nKEEP THIS AT ALL COSTS")
+        self.auth_label.configure(text=f'Your User Hash:\n"{str(h)}"\nYour 2FA key:\n"{str(tfa)}"\n')
         self.select_frame_by_name("home info")
 
     def signin_successful(self, msg):
@@ -327,6 +327,12 @@ class App(customtkinter.CTk):
         # this includes an if statement to remove any directories
         files = [f for f in os.listdir(self.local_dir) if os.path.isfile(os.path.join(self.local_dir, f))]
         variables = []
+
+        # Destroy previous lines
+        for widget in self.scrollable_frame_1.winfo_children():
+            widget.destroy()
+
+        # Apply new lines
         for i, file in enumerate(files):
             variables.append(customtkinter.StringVar(value="off"))
             checkbox = customtkinter.CTkCheckBox(self.scrollable_frame_1, text=file, variable=variables[i],
@@ -400,6 +406,12 @@ class App(customtkinter.CTk):
     def file_list(self, data):
         files = eval(data)
         variables = []
+
+        # Destroy previous lines
+        for widget in self.scrollable_frame_2.winfo_children():
+            widget.destroy()
+
+        # Apply new lines
         for i, file in enumerate(files):
             variables.append(customtkinter.StringVar(value="off"))
             checkbox = customtkinter.CTkCheckBox(self.scrollable_frame_2, text=file, variable=variables[i],

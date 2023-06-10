@@ -151,7 +151,7 @@ def process_packet(pkt):
 
         pkt = decrypt_packet(pkt.load)
 
-        ip, port, session_id, data = pkt  # session key becomes redundant
+        ip, port, data = pkt
         print(f"{key_num}-->{ip}:{port}")
         send_data(data, ip, port, prev_addr_to_ports.get_value(src_address))
     elif prev_addr_to_ports.has_this_value(dport):
@@ -163,7 +163,7 @@ def process_packet(pkt):
 
 def set_up_route(pkt, src_address):
     pkt = decrypt_packet(pkt.load)
-    ip, port, session_id, data = pkt
+    ip, port, data = pkt
     pk = data[:451]
     data = data[451:]
 

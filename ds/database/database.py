@@ -13,6 +13,7 @@ class Database:
         # for debugging
         self.create_table_if_not_exists("nodes", self.table)
         padder = "-"*150
+        print("NODES:")
         print(f'\n{padder}\n'.join(map(str, self.get_all_nodes())))
         ######
 
@@ -148,7 +149,7 @@ class Database:
 
 if __name__ == '__main__':
     db = Database()
-    # db.delete_all_nodes()
+    db.delete_all_nodes()
     # with open("keys/public_key1.pem", "r") as p:
     #     pk1 = p.read()
     # with open("keys/public_key2.pem", "r") as p:

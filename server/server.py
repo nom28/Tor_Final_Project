@@ -8,6 +8,7 @@ from queue import Queue, Empty
 import secrets
 
 import tools.toolbox as tb
+from tools.layer import Layer
 from database.database import Database
 
 warnings.filterwarnings("ignore", category=CryptographyDeprecationWarning)
@@ -32,8 +33,38 @@ _id = 40000
 db = Database()
 fragmented_packets = {}
 
+layer0 = Layer()
+server_layer = Layer()
+key_dir = "keys/"
 
-def threaded_sniff_with_send():
+
+def boot(HOST, PORT):
+    server_layer.store_keys(key_dir)
+    with open(key_dir+"public_key.pem", "r") as k:
+        pk = k.read()
+
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    s.connect(('8.8.8.8', 80))
+    nat_ip_address = s.getsockname()[0]
+    s.close()
+
+    client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    client_socket.bind((nat_ip_address, personal_port))
+    client_socket.connect((HOST, PORT))
+
+    message = b"S" + pickle.dumps((nat_ip_address, personal_port, "CONNECTING", pk))
+
+    client_socket.send(message)
+    response = client_socket.recv(1024).decode('utf-8')
+
+    print(response)
+    if response != "OK" and response != "REACTIVATED":
+        input()
+
+    client_socket.close()
+
+
+def packet_handle():
     q = Queue()
     print("initiating sniffer")
     sniffer = Thread(target=sniff_loopback, args=(q,))
@@ -95,6 +126,8 @@ def process_packet(packet):
     key = packet[IP].src + "#" + str(packet[TCP].sport)
     load = packet.load
 
+    load = decrypt_packet(load)
+
     code = load[:1]
     if code == b"U":
         if key in conversations:
@@ -115,9 +148,15 @@ def process_packet(packet):
     if code == b"S":
         signup(key, load[1:])
     if code == b"B":
+        save_pk(key, load[1:])
         print(load[1:])
         time.sleep(1)  # This is temporary: client needs a moment to start up!
-        reply(b"great", b'\xf2\xee\x07', key)
+        reply(b"Connected", b'\xf2\xee\x07', key)
+
+
+def save_pk(key, pk):
+    with open(key_dir+f"public_key[{key}]".replace(".", "_") + ".pem", "wb") as k:
+        k.write(pk)
 
 
 def signin(key, user):
@@ -214,38 +253,25 @@ def reply(data, code_prefix, key):
     :return:
     """
     global _id
+    if not os.path.isfile(key_dir+f"public_key[{key}]".replace(".", "_")+".pem"):
+        print("key does not exist: ", key_dir+f"public_key[{key}]".replace(".", "_")+".pem")
+        return
     dst, dport = key.split("#")
     dport = int(dport)
     crop_len = 12797
     while len(data) > 0:
         if len(data) > crop_len:
-            sendable_data = code_prefix + data[:crop_len]
+            sendable_data = encrypt_packet(code_prefix + data[:crop_len], key)
             packet = IP(dst=dst, id=_id) / TCP(dport=dport, sport=personal_port) / Raw(sendable_data)
             _id += 1
             send(fragment(packet, fragsize=1400))
             data = data[crop_len:]
         else:
-            sendable_data = code_prefix + data
+            sendable_data = encrypt_packet(code_prefix + data, key)
             packet = IP(dst=dst, id=_id) / TCP(dport=dport, sport=personal_port) / Raw(sendable_data)
             _id += 1
             send(fragment(packet, fragsize=1400))
             break
-
-
-# only for pictures
-"""if d == b"DONE":
-    with open("newpicture.jpg", "wb") as picture:
-        picture.write(data)
-else:
-    data = data + d"""
-
-
-"""
-def decrypt_packet(data):
-    decrypted_data = layer3.decrypt(layer2.decrypt(layer1.decrypt(data)))
-    print(decrypted_data)
-    return decrypted_data
-"""
 
 
 def list_from_iter(iter):
@@ -255,8 +281,20 @@ def list_from_iter(iter):
     return l
 
 
+def decrypt_packet(data):
+    decrypted_data = server_layer.decrypt(data)
+    return decrypted_data
+
+
+def encrypt_packet(data, key):
+    layer0.change_keys(key_dir, f"[{key}]".replace(".", "_"), False)
+    encrypted_data = layer0.b_encrypt(data)
+    return encrypted_data
+
+
 if __name__ == '__main__':
     if len(sys.argv) > 1:
         personal_port = int(sys.argv[1])
 
-threaded_sniff_with_send()
+boot("10.0.0.24", 55677)
+packet_handle()

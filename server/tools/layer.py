@@ -58,8 +58,10 @@ class Layer:
         self.f = Fernet(self.key)
         encrypted_data = self.f.encrypt(data)
 
+        heading = self.key
+
         encrypted_heading = self.public_key.encrypt(
-            self.key,
+            heading,
             padding.OAEP(
                 mgf=padding.MGF1(algorithm=hashes.SHA256()),
                 algorithm=hashes.SHA256(),
@@ -81,16 +83,10 @@ class Layer:
             )
         )
         decrypted_key = decrypted_heading[:44]
-        decrypted_heading = decrypted_heading[44:]
-
-        decrypted_ip = self.hex_to_ip(decrypted_heading[:8])
-        decrypted_heading = decrypted_heading[8:]
-
-        decrypted_port = int(decrypted_heading)
 
         encrypted_data = encrypted_data[256:]
         f = Fernet(decrypted_key)
-        return [decrypted_ip, decrypted_port, f.decrypt(encrypted_data)]
+        return f.decrypt(encrypted_data)
 
     @staticmethod
     def ip_to_hex(ip):
@@ -104,7 +100,3 @@ class Layer:
         ip = [int(i, 16) for i in octets]
         ip = '.'.join(str(i) for i in ip)
         return ip
-
-
-if __name__ == '__main__':
-    pass
