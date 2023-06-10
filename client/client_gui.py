@@ -16,7 +16,7 @@ import tools.toolbox as tb
 class App(customtkinter.CTk):
     c = Client()
     local_dir = ""
-    loggedin = False
+    signedin = False
 
     buffer = 0
     designated_file_name = ""
@@ -266,18 +266,21 @@ class App(customtkinter.CTk):
 
     def signup_successful(self, msg):
         h, tfa = pickle.loads(msg)
-        self.loggedin = True
+        self.signedin = True
         self.update_label.configure(text="")
         self.auth_label.configure(text=f'Your User Hash:\n"{str(h)}"\nYour 2FA key:\n"{str(tfa)}"\n')
         self.select_frame_by_name("home info")
 
     def signin_successful(self, msg):
-        self.loggedin = True
+        self.signedin = True
         self.update_label.configure(text="")
         self.auth_label.configure(text="")
         self.select_frame_by_name("home info")
 
     def select_frame_by_name(self, name):
+        if not self.signedin and (name == "download" or name == "upload"):
+            return
+
         # set button color for selected button
         self.home_button.configure(fg_color=("gray75", "gray25") if name.split(" ")[0] == "home" else "transparent")
         self.frame_2_button.configure(fg_color=("gray75", "gray25") if name == "upload" else "transparent")
@@ -312,7 +315,7 @@ class App(customtkinter.CTk):
             self.fourth_frame.grid_forget()
 
     def home_button_event(self):
-        if self.loggedin:
+        if self.signedin:
             self.select_frame_by_name("home info")
         else:
             self.select_frame_by_name("home signin")
@@ -361,7 +364,8 @@ class App(customtkinter.CTk):
 
     def frame_3_button_event(self):
         self.select_frame_by_name("download")
-        self.c.send(b"0", b"L")  # first argument is the page number
+        if self.signedin:
+            self.c.send(b"0", b"L")  # first argument is the page number
 
     def frame_4_button_event(self):
         self.select_frame_by_name("settings")
