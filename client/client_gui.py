@@ -347,6 +347,7 @@ class App(customtkinter.CTk):
             if var.get() == "on":
                 relevant_files.append(files[i])
 
+        self.upload_button.configure(state="disabled")
         self.upload_amount = len(relevant_files)
         for file in relevant_files:
             with open(self.local_dir+"/"+file, "rb") as i:
@@ -360,6 +361,7 @@ class App(customtkinter.CTk):
         if self.upload_amount:
             return
 
+        self.upload_button.configure(state="normal")
         timestamp = time.strftime("%H:%M:%S", time.localtime())
         self.update_label.configure(text=f"[{timestamp}] Upload finished", text_color=("gray10", "gray90"))
 
@@ -429,6 +431,7 @@ class App(customtkinter.CTk):
                 relevant_files.append(files[i])
 
         self.download_amount = len(relevant_files)
+        self.download_button.configure(state="disabled")
         self.c.send(str(relevant_files).encode('utf-8'), b"D")
 
     def download_save(self, data):
@@ -450,6 +453,9 @@ class App(customtkinter.CTk):
                                         text_color=("gray10", "gray90"))
             return
 
+        self.download_amount = 0
+        self.items_downloaded = 0
+        self.download_button.configure(state="normal")
         timestamp = time.strftime("%H:%M:%S", time.localtime())
         self.update_label.configure(text=f"[{timestamp}] Download finished", text_color=("gray10", "gray90"))
 
