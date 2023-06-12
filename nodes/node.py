@@ -102,16 +102,24 @@ def handle_client(client_socket, client_address, mode="CTS"):
     while True:
         data = recv_all(client_socket)
         if not data[1]:
-            print(data[0])
             break
         data = data[0]
         if not data:
             break
         process_data(data, client_socket, client_address, mode)
 
-    client_socket.close()
     if mode == "CTS":
         print("Disconnected:", client_address)
+        stc_sock = sockA_to_sockB.get_value(client_socket)
+        sockA_to_sockB.del_item(client_socket, stc_sock)
+        try:
+            stc_sock.close()
+        except Exception as e:
+            print(e)
+
+    client_socket.close()
+
+
 
 
 def process_data(data, client_socket, client_address, mode):
@@ -129,6 +137,7 @@ def process_data(data, client_socket, client_address, mode):
             client_thread.start()
 
             set_up_route(data, sock, client_address)
+            print(f"{key_num}-->{_ip}:{_port}")
             return
 
         data = node_layer.decrypt(data)
@@ -179,7 +188,7 @@ def recv_all(sock):
     try:
         msg_size = sock.recv(10)
     except:
-        return "recv error", False
+        return "recv error1", False
     if not msg_size:
         return "msg length error1", False
     try:

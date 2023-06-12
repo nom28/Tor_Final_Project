@@ -90,7 +90,6 @@ def handle_client(client_socket, client_address):
     while True:
         data = recv_all(client_socket)
         if not data[1]:
-            print(data[0])
             break
         data = data[0]
         if not data:
@@ -98,6 +97,8 @@ def handle_client(client_socket, client_address):
         process_data(data, client_socket, client_address, db)
 
     client_socket.close()
+    if client_socket in sessions:
+        del sessions[client_socket]
     print("Disconnected:", client_address)
 
 
@@ -157,7 +158,6 @@ def signin(key, user, cs, db):
         return
     reply(b"sign in successful", b'\xc6\xbd\x06', key, cs)
     sessions[cs] = db.get_user_by_hash(h)[0]
-    print(sessions)
 
 
 def signup(key, user, cs, db):
@@ -169,7 +169,6 @@ def signup(key, user, cs, db):
     print(db.get_all_users())
     if result:
         sessions[cs] = db.get_user_by_hash(random_hash)[0]
-        print(sessions)
         os.mkdir(f"server_files/f{sessions[cs]}")
         reply(pickle.dumps((random_hash, result)), b'\x9d\xf6\x9e', key, cs)
     else:
