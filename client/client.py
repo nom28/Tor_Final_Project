@@ -85,10 +85,10 @@ class Client:
             data = pk.read()
 
         # This is now done in a dumb way since server does not encrypt YET
-        encrypted_data = self.layerS.server_encrypt(b'B'+data)
-        encrypted_data = self.layer3.encrypt(data+encrypted_data, self.addresses[4][0], str(self.addresses[4][1]))
-        encrypted_data = self.layer2.encrypt(data+encrypted_data, self.addresses[3][0], str(self.addresses[3][1]))
-        encrypted_data = self.layer1.encrypt(data+encrypted_data, self.addresses[2][0], str(self.addresses[2][1]))
+        encrypted_data = self.layerS.encrypt(b'B'+data)
+        encrypted_data = self.layer3.startup_encrypt(data+encrypted_data, self.addresses[4][0], str(self.addresses[4][1]))
+        encrypted_data = self.layer2.startup_encrypt(data+encrypted_data, self.addresses[3][0], str(self.addresses[3][1]))
+        encrypted_data = self.layer1.startup_encrypt(data+encrypted_data, self.addresses[2][0], str(self.addresses[2][1]))
 
         self.main_socket.sendall(str(len(encrypted_data)).zfill(10).encode() + encrypted_data)
 
@@ -121,10 +121,10 @@ class Client:
         self.main_socket.sendall(str(len(encrypted_data)).zfill(10).encode() + encrypted_data)
 
     def full_encrypt(self, data):
-        encrypted_data = self.layerS.server_encrypt(data)
-        encrypted_data = self.layer3.encrypt(encrypted_data, self.addresses[4][0], str(self.addresses[4][1]))
-        encrypted_data = self.layer2.encrypt(encrypted_data, self.addresses[3][0], str(self.addresses[3][1]))
-        encrypted_data = self.layer1.encrypt(encrypted_data, self.addresses[2][0], str(self.addresses[2][1]))
+        encrypted_data = self.layerS.encrypt(data)
+        encrypted_data = self.layer3.encrypt(encrypted_data)
+        encrypted_data = self.layer2.encrypt(encrypted_data)
+        encrypted_data = self.layer1.encrypt(encrypted_data)
         return encrypted_data
 
     def decrypt_packet(self, data):

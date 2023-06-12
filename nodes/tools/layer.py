@@ -80,6 +80,21 @@ class Layer:
                 label=None
             )
         )
+
+        encrypted_data = encrypted_data[256:]
+        f = Fernet(decrypted_heading)
+        return f.decrypt(encrypted_data)
+
+    def startup_decrypt(self, encrypted_data):
+        encrypted_heading = encrypted_data[:256]
+        decrypted_heading = self.private_key.decrypt(
+            encrypted_heading,
+            padding.OAEP(
+                mgf=padding.MGF1(algorithm=hashes.SHA256()),
+                algorithm=hashes.SHA256(),
+                label=None
+            )
+        )
         decrypted_key = decrypted_heading[:44]
         decrypted_heading = decrypted_heading[44:]
 

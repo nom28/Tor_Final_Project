@@ -53,7 +53,7 @@ class Layer:
                     backend=default_backend()
                 )
 
-    def encrypt(self, data, ip="127.0.0.1", port="55556"):
+    def startup_encrypt(self, data, ip="127.0.0.1", port="55556"):
         # could be possible to move data in heading to the payload.
         self.f = Fernet(self.key)
         encrypted_data = self.f.encrypt(data)
@@ -73,7 +73,7 @@ class Layer:
 
         return product
 
-    def server_encrypt(self, data):
+    def encrypt(self, data):
         self.f = Fernet(self.key)
         encrypted_data = self.f.encrypt(data)
 
