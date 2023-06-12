@@ -1,4 +1,5 @@
 import customtkinter
+from tkinter import *
 from tkinter import filedialog as fd
 import os
 from PIL import Image
@@ -37,6 +38,7 @@ class App(customtkinter.CTk):
 
         self.title("PASTA")
         self.geometry("700x450")
+        self.minsize(width=700, height=450)
 
         # set grid layout 1x2
         self.grid_rowconfigure(0, weight=1)
@@ -256,7 +258,6 @@ class App(customtkinter.CTk):
                 time.sleep(0)
 
     def _update_label(self, msg):
-        print("updated label")
         timestamp = time.strftime("%H:%M:%S", time.localtime())
         self.update_label.configure(text=f"[{timestamp}] {msg.decode('utf-8')}", text_color=("gray10", "gray90"))
 
@@ -328,6 +329,7 @@ class App(customtkinter.CTk):
 
         # Destroy previous lines
         for widget in self.scrollable_frame_1.winfo_children():
+            widget.grid_forget()
             widget.destroy()
 
         # Apply new lines
@@ -347,7 +349,6 @@ class App(customtkinter.CTk):
 
         self.upload_amount = len(relevant_files)
         for file in relevant_files:
-            print(file)
             with open(self.local_dir+"/"+file, "rb") as i:
                 data = i.read()
                 # print("length:", len(data))
@@ -405,11 +406,10 @@ class App(customtkinter.CTk):
     def file_list(self, data):
         files = eval(data)
         variables = []
-
         # Destroy previous lines
         for widget in self.scrollable_frame_2.winfo_children():
+            widget.grid_forget()  # for some reason raises error without forgetting before destroying
             widget.destroy()
-
         # Apply new lines
         for i, file in enumerate(files):
             variables.append(customtkinter.StringVar(value="off"))

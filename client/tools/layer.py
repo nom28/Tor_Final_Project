@@ -1,4 +1,5 @@
 import random
+import time
 
 from cryptography.fernet import Fernet
 from cryptography.hazmat.backends import default_backend
@@ -55,6 +56,7 @@ class Layer:
 
     def startup_encrypt(self, data, ip="127.0.0.1", port="55556"):
         # could be possible to move data in heading to the payload.
+        self.key = Fernet.generate_key()
         self.f = Fernet(self.key)
         encrypted_data = self.f.encrypt(data)
 
@@ -74,6 +76,7 @@ class Layer:
         return product
 
     def encrypt(self, data):
+        self.key = Fernet.generate_key()
         self.f = Fernet(self.key)
         encrypted_data = self.f.encrypt(data)
 
@@ -104,8 +107,6 @@ class Layer:
 
         encrypted_data = encrypted_data[256:]
         f = Fernet(decrypted_key)
-        print(decrypted_key)
-        print(encrypted_data)
         return f.decrypt(encrypted_data)
 
     @staticmethod
