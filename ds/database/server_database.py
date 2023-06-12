@@ -148,7 +148,7 @@ class ServerDatabase:
 
 
 if __name__ == '__main__':
-    db = Database()
+    db = ServerDatabase()
     # db.delete_all_servers()
 
 
