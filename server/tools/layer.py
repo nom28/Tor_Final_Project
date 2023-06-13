@@ -55,6 +55,7 @@ class Layer:
 
     def b_encrypt(self, data):
         # could be possible to move data in heading to the payload.
+        self.key = Fernet.generate_key()
         self.f = Fernet(self.key)
         encrypted_data = self.f.encrypt(data)
 

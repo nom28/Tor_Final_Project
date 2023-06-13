@@ -20,7 +20,7 @@ key_dir = ""
 
 finished = False
 sockA_to_sockB = BiDict()
-fragmented_packets = {}
+sock_to_layer = {}
 ip = None
 
 
@@ -54,6 +54,12 @@ def disconnect(HOST, PORT):
 
 
 def boot(HOST, PORT):
+    """
+    Makes a connection with the directory server
+    :param HOST: directory server ip
+    :param PORT: directory server port
+    :return:
+    """
     find_my_ip()
 
     node_layer.store_keys(key_dir)
@@ -77,6 +83,10 @@ def boot(HOST, PORT):
 
 
 def packet_handle():
+    """
+    starts node and allows new connections
+    :return:
+    """
     global ip
 
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -102,26 +112,31 @@ def handle_client(client_socket, client_address, mode="CTS"):
     while True:
         data = recv_all(client_socket)
         if not data[1]:
-            print(data[0])
             break
         data = data[0]
         if not data:
             break
         process_data(data, client_socket, client_address, mode)
 
-    client_socket.close()
     if mode == "CTS":
         print("Disconnected:", client_address)
+        stc_sock = sockA_to_sockB.get_value(client_socket)
+        sockA_to_sockB.del_item(client_socket, stc_sock)
+        try:
+            stc_sock.close()
+        except Exception as e:
+            print(e)
+
+    client_socket.close()
 
 
 def process_data(data, client_socket, client_address, mode):
     global sockA_to_sockB
 
     if mode == "CTS":
-        data = decrypt_packet(data)
-        _ip, _port, data = data
-
         if not sockA_to_sockB.has_this_key(client_socket):  # If this is the first message then add it to the dict
+            data = node_layer.startup_decrypt(data)
+            _ip, _port, data = data
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             sock.connect((_ip, _port))
             sockA_to_sockB.add(client_socket, sock)
@@ -130,7 +145,12 @@ def process_data(data, client_socket, client_address, mode):
             client_thread.start()
 
             set_up_route(data, sock, client_address)
+            print(f"{key_num}-->{_ip}:{_port}")
             return
+
+        data = node_layer.decrypt(data)
+        peername = sockA_to_sockB.get_value(client_socket).getpeername()
+        _ip, _port = peername
 
         print(f"{key_num}-->{_ip}:{_port}")
         send_data(data, sockA_to_sockB.get_value(client_socket))
@@ -140,37 +160,35 @@ def process_data(data, client_socket, client_address, mode):
             exit()
 
         sock = sockA_to_sockB.get_key(client_socket)
-        peername = sock.getpeername()
-        _ip, _port = peername
+        _ip, _port = sock.getpeername()
         print(f"{_ip}:{_port}<--{key_num}")
-        print(sock.getpeername())
-        data = encrypt_packet(data, peername)
+        data = encrypt_packet(data, client_socket)
         send_data(data, sock)
 
 
 def set_up_route(data, sock, src_address):
+    global sock_to_layer
     pk = data[:451]
     data = data[451:]
 
     with open(key_dir+f"public_key{src_address}".replace(".", "_") + ".pem", "wb") as k:
         k.write(pk)
 
+    l = Layer()
+    l.change_keys(key_dir, f"{src_address}".replace(".", "_"), False)
+    sock_to_layer[sock] = l
+
     send_data(data, sock)
 
 
-def decrypt_packet(data):
-    decrypted_data = node_layer.decrypt(data)
-    return decrypted_data
-
-
-def encrypt_packet(data, src_address):
-    layer0.change_keys(key_dir, f"{src_address}".replace(".", "_"), False)
-    encrypted_data = layer0.b_encrypt(data)
+def encrypt_packet(data, cs):
+    global sock_to_layer
+    layer = sock_to_layer[cs]
+    encrypted_data = layer.b_encrypt(data)
     return encrypted_data
 
 
 def send_data(data, sock):
-    print(str(len(data)).zfill(10).encode())
     sock.sendall(str(len(data)).zfill(10).encode() + data)
 
 
@@ -183,7 +201,7 @@ def recv_all(sock):
     try:
         msg_size = sock.recv(10)
     except:
-        return "recv error", False
+        return "recv error1", False
     if not msg_size:
         return "msg length error1", False
     try:

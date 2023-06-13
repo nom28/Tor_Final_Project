@@ -18,3 +18,7 @@ class BiDict:
 
     def has_this_value(self, value):
         return value in self._dict2
+
+    def del_item(self, key, value):
+        del self._dict1[key]
+        del self._dict2[value]

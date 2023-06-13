@@ -1,4 +1,5 @@
 import customtkinter
+from tkinter import *
 from tkinter import filedialog as fd
 import os
 from PIL import Image
@@ -16,7 +17,7 @@ import tools.toolbox as tb
 class App(customtkinter.CTk):
     c = Client()
     local_dir = ""
-    loggedin = False
+    signedin = False
 
     buffer = 0
     designated_file_name = ""
@@ -37,6 +38,7 @@ class App(customtkinter.CTk):
 
         self.title("PASTA")
         self.geometry("700x450")
+        self.minsize(width=700, height=450)
 
         # set grid layout 1x2
         self.grid_rowconfigure(0, weight=1)
@@ -256,7 +258,6 @@ class App(customtkinter.CTk):
                 time.sleep(0)
 
     def _update_label(self, msg):
-        print("updated label")
         timestamp = time.strftime("%H:%M:%S", time.localtime())
         self.update_label.configure(text=f"[{timestamp}] {msg.decode('utf-8')}", text_color=("gray10", "gray90"))
 
@@ -266,18 +267,21 @@ class App(customtkinter.CTk):
 
     def signup_successful(self, msg):
         h, tfa = pickle.loads(msg)
-        self.loggedin = True
+        self.signedin = True
         self.update_label.configure(text="")
         self.auth_label.configure(text=f'Your User Hash:\n"{str(h)}"\nYour 2FA key:\n"{str(tfa)}"\n')
         self.select_frame_by_name("home info")
 
     def signin_successful(self, msg):
-        self.loggedin = True
+        self.signedin = True
         self.update_label.configure(text="")
         self.auth_label.configure(text="")
         self.select_frame_by_name("home info")
 
     def select_frame_by_name(self, name):
+        if not self.signedin and (name == "download" or name == "upload"):
+            return
+
         # set button color for selected button
         self.home_button.configure(fg_color=("gray75", "gray25") if name.split(" ")[0] == "home" else "transparent")
         self.frame_2_button.configure(fg_color=("gray75", "gray25") if name == "upload" else "transparent")
@@ -312,7 +316,7 @@ class App(customtkinter.CTk):
             self.fourth_frame.grid_forget()
 
     def home_button_event(self):
-        if self.loggedin:
+        if self.signedin:
             self.select_frame_by_name("home info")
         else:
             self.select_frame_by_name("home signin")
@@ -325,6 +329,7 @@ class App(customtkinter.CTk):
 
         # Destroy previous lines
         for widget in self.scrollable_frame_1.winfo_children():
+            widget.grid_forget()
             widget.destroy()
 
         # Apply new lines
@@ -342,9 +347,9 @@ class App(customtkinter.CTk):
             if var.get() == "on":
                 relevant_files.append(files[i])
 
+        self.upload_button.configure(state="disabled")
         self.upload_amount = len(relevant_files)
         for file in relevant_files:
-            print(file)
             with open(self.local_dir+"/"+file, "rb") as i:
                 data = i.read()
                 # print("length:", len(data))
@@ -356,12 +361,14 @@ class App(customtkinter.CTk):
         if self.upload_amount:
             return
 
+        self.upload_button.configure(state="normal")
         timestamp = time.strftime("%H:%M:%S", time.localtime())
         self.update_label.configure(text=f"[{timestamp}] Upload finished", text_color=("gray10", "gray90"))
 
     def frame_3_button_event(self):
         self.select_frame_by_name("download")
-        self.c.send(b"0", b"L")  # first argument is the page number
+        if self.signedin:
+            self.c.send(b"0", b"L")  # first argument is the page number
 
     def frame_4_button_event(self):
         self.select_frame_by_name("settings")
@@ -401,11 +408,10 @@ class App(customtkinter.CTk):
     def file_list(self, data):
         files = eval(data)
         variables = []
-
         # Destroy previous lines
         for widget in self.scrollable_frame_2.winfo_children():
+            widget.grid_forget()  # for some reason raises error without forgetting before destroying
             widget.destroy()
-
         # Apply new lines
         for i, file in enumerate(files):
             variables.append(customtkinter.StringVar(value="off"))
@@ -425,6 +431,7 @@ class App(customtkinter.CTk):
                 relevant_files.append(files[i])
 
         self.download_amount = len(relevant_files)
+        self.download_button.configure(state="disabled")
         self.c.send(str(relevant_files).encode('utf-8'), b"D")
 
     def download_save(self, data):
@@ -446,6 +453,9 @@ class App(customtkinter.CTk):
                                         text_color=("gray10", "gray90"))
             return
 
+        self.download_amount = 0
+        self.items_downloaded = 0
+        self.download_button.configure(state="normal")
         timestamp = time.strftime("%H:%M:%S", time.localtime())
         self.update_label.configure(text=f"[{timestamp}] Download finished", text_color=("gray10", "gray90"))
 

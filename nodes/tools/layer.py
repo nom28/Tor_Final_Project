@@ -55,6 +55,7 @@ class Layer:
 
     def b_encrypt(self, data):
         # could be possible to move data in heading to the payload.
+        self.key = Fernet.generate_key()
         self.f = Fernet(self.key)
         encrypted_data = self.f.encrypt(data)
 
@@ -71,6 +72,21 @@ class Layer:
         return product
 
     def decrypt(self, encrypted_data):
+        encrypted_heading = encrypted_data[:256]
+        decrypted_heading = self.private_key.decrypt(
+            encrypted_heading,
+            padding.OAEP(
+                mgf=padding.MGF1(algorithm=hashes.SHA256()),
+                algorithm=hashes.SHA256(),
+                label=None
+            )
+        )
+
+        encrypted_data = encrypted_data[256:]
+        f = Fernet(decrypted_heading)
+        return f.decrypt(encrypted_data)
+
+    def startup_decrypt(self, encrypted_data):
         encrypted_heading = encrypted_data[:256]
         decrypted_heading = self.private_key.decrypt(
             encrypted_heading,
