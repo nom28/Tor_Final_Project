@@ -20,7 +20,7 @@ key_dir = ""
 
 finished = False
 sockA_to_sockB = BiDict()
-fragmented_packets = {}
+sock_to_layer = {}
 ip = None
 
 
@@ -54,6 +54,12 @@ def disconnect(HOST, PORT):
 
 
 def boot(HOST, PORT):
+    """
+    Makes a connection with the directory server
+    :param HOST: directory server ip
+    :param PORT: directory server port
+    :return:
+    """
     find_my_ip()
 
     node_layer.store_keys(key_dir)
@@ -77,6 +83,10 @@ def boot(HOST, PORT):
 
 
 def packet_handle():
+    """
+    starts node and allows new connections
+    :return:
+    """
     global ip
 
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -120,8 +130,6 @@ def handle_client(client_socket, client_address, mode="CTS"):
     client_socket.close()
 
 
-
-
 def process_data(data, client_socket, client_address, mode):
     global sockA_to_sockB
 
@@ -152,26 +160,31 @@ def process_data(data, client_socket, client_address, mode):
             exit()
 
         sock = sockA_to_sockB.get_key(client_socket)
-        peername = sock.getpeername()
-        _ip, _port = peername
+        _ip, _port = sock.getpeername()
         print(f"{_ip}:{_port}<--{key_num}")
-        data = encrypt_packet(data, peername)
+        data = encrypt_packet(data, client_socket)
         send_data(data, sock)
 
 
 def set_up_route(data, sock, src_address):
+    global sock_to_layer
     pk = data[:451]
     data = data[451:]
 
     with open(key_dir+f"public_key{src_address}".replace(".", "_") + ".pem", "wb") as k:
         k.write(pk)
 
+    l = Layer()
+    l.change_keys(key_dir, f"{src_address}".replace(".", "_"), False)
+    sock_to_layer[sock] = l
+
     send_data(data, sock)
 
 
-def encrypt_packet(data, src_address):
-    layer0.change_keys(key_dir, f"{src_address}".replace(".", "_"), False)
-    encrypted_data = layer0.b_encrypt(data)
+def encrypt_packet(data, cs):
+    global sock_to_layer
+    layer = sock_to_layer[cs]
+    encrypted_data = layer.b_encrypt(data)
     return encrypted_data
 
 

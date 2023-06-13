@@ -12,7 +12,6 @@ import tools.toolbox as tb
 from tools.layer import Layer
 from database.database import Database
 
-
 data = b""
 """
 layer1 = Layer()
@@ -24,6 +23,7 @@ layer2.change_keys("2")
 finished = False
 sessions = {}
 conversations = {}
+sock_to_layer = {}
 personal_port = 55559
 ip = None
 
@@ -42,12 +42,18 @@ def find_my_ip():
 
 
 def boot(HOST, PORT):
+    """
+    Makes a connection with the directory server
+    :param HOST: directory server ip
+    :param PORT: directory server port
+    :return:
+    """
     global ip
 
     find_my_ip()
 
     server_layer.store_keys(key_dir)
-    with open(key_dir+"public_key.pem", "r") as k:
+    with open(key_dir + "public_key.pem", "r") as k:
         pk = k.read()
 
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -67,6 +73,10 @@ def boot(HOST, PORT):
 
 
 def packet_handle():
+    """
+    starts server and allows listening
+    :return:
+    """
     global ip
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server_address = (ip, personal_port)
@@ -117,12 +127,12 @@ def process_data(data, client_socket, client_address, db):
         signup(key, data[1:], client_socket, db)
         return
     if code == b"B":
-        save_pk(key, data[1:])
-        reply(b"Started", b'\xf2\xee\x07', key, client_socket)
+        save_pk(key, data[1:], client_socket)
+        reply(b"Started", b'\xf2\xee\x07', client_socket)
         return
 
     if client_socket not in sessions:
-        reply(b"Not signed-in", b'\xf2\xee\x07', key, client_socket)
+        reply(b"Not signed-in", b'\xf2\xee\x07', client_socket)
         return
 
     if code == b"U":
@@ -132,7 +142,7 @@ def process_data(data, client_socket, client_address, db):
             file_name = data[1:]
             conversations[client_socket] = file_name
             # blue v for accepting
-            reply(b"Request accepted", b'\xf2\xee\x07', key, client_socket)
+            reply(b"Request accepted", b'\xf2\xee\x07', client_socket)
         return
     if code == b"D":
         file_names = data[1:]
@@ -143,20 +153,25 @@ def process_data(data, client_socket, client_address, db):
         return
 
 
-def save_pk(key, pk):
-    with open(key_dir+f"public_key[{key}]".replace(".", "_") + ".pem", "wb") as k:
+def save_pk(key, pk, cs):
+    global sock_to_layer
+    with open(key_dir + f"public_key[{key}]".replace(".", "_") + ".pem", "wb") as k:
         k.write(pk)
+
+    l = Layer()
+    l.change_keys(key_dir, f"[{key}]".replace(".", "_"), False)
+    sock_to_layer[cs] = l
 
 
 def signin(key, user, cs, db):
     h, auth = pickle.loads(user)
     if not db.check_user_exists(h):
-        reply(b"Hash incorrect", b'\xd3\xb6\xad', key, cs)
+        reply(b"Hash incorrect", b'\xd3\xb6\xad', cs)
         return
     if not db.check_user_otp(h, auth):
-        reply(b"Auth incorrect", b'\xd3\xb6\xad', key, cs)
+        reply(b"Auth incorrect", b'\xd3\xb6\xad', cs)
         return
-    reply(b"sign in successful", b'\xc6\xbd\x06', key, cs)
+    reply(b"sign in successful", b'\xc6\xbd\x06', cs)
     sessions[cs] = db.get_user_by_hash(h)[0]
 
 
@@ -170,9 +185,9 @@ def signup(key, user, cs, db):
     if result:
         sessions[cs] = db.get_user_by_hash(random_hash)[0]
         os.mkdir(f"server_files/f{sessions[cs]}")
-        reply(pickle.dumps((random_hash, result)), b'\x9d\xf6\x9e', key, cs)
+        reply(pickle.dumps((random_hash, result)), b'\x9d\xf6\x9e', cs)
     else:
-        reply(b"User already exists", b'\xd3\xb6\xad', key, cs)
+        reply(b"User already exists", b'\xd3\xb6\xad', cs)
 
 
 def send_list(key, cs):
@@ -181,7 +196,7 @@ def send_list(key, cs):
     entry_list = list_from_iter(entries)
     if "Thumbs.db" in entry_list:
         entry_list.remove("Thumbs.db")
-    reply(str(entry_list).encode('utf-8'), b'\x98\x16\xac', key, cs)
+    reply(str(entry_list).encode('utf-8'), b'\x98\x16\xac', cs)
 
 
 def download(key, file_names, cs):
@@ -189,14 +204,14 @@ def download(key, file_names, cs):
     file_names = eval(file_names)
 
     # blue v for accepting
-    reply(b"Request accepted", b'\xf2\xee\x07', key, cs)
+    reply(b"Request accepted", b'\xf2\xee\x07', cs)
 
     for file in file_names:
         with open(f"server_files/f{user_folder}/{file}", "rb") as f:
             data = f.read()
             print(len(data))
-            reply(file.encode(), b'\xa7\x98\xa8', key, cs)
-            reply(data, b'\xa7\x98\xa8', key, cs)
+            reply(file.encode(), b'\xa7\x98\xa8', cs)
+            reply(data, b'\xa7\x98\xa8', cs)
 
 
 def upload_request(key, load, cs):
@@ -211,19 +226,18 @@ def upload(data, file_name, key, cs):
     with open(f"server_files/f{user_folder}/{file_name.decode()}", "wb") as i:
         i.write(data)
         time.sleep(0.001)
-    reply(b'upload complete', b'\x9d\xb7\xe3', key, cs)
+    reply(b'upload complete', b'\x9d\xb7\xe3', cs)
 
 
-def reply(data, code_prefix, key, sock):
+def reply(data, code_prefix, sock):
     """
     Sends back replies on received messages to imitate a server
     :param code_prefix: to let other side know meaning of aproach
-    :param key: consists of src#sport or received packet
     :param data: The data that is to be replied
     :param sock: client socket
     :return:
     """
-    sendable_data = encrypt_packet(code_prefix + data, key)
+    sendable_data = encrypt_packet(code_prefix + data, sock)
     sock.sendall(str(len(sendable_data)).zfill(10).encode() + sendable_data)
 
 
@@ -239,9 +253,10 @@ def decrypt_packet(data):
     return decrypted_data
 
 
-def encrypt_packet(data, key):
-    layer0.change_keys(key_dir, f"[{key}]".replace(".", "_"), False)
-    encrypted_data = layer0.b_encrypt(data)
+def encrypt_packet(data, cs):
+    global sock_to_layer
+    layer = sock_to_layer[cs]
+    encrypted_data = layer.b_encrypt(data)
     return encrypted_data
 
 
